@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "EcoPoints",
+    "slug": "ecopoints-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "platforms": ["ios", "android", "web"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.ecopoints.app"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
