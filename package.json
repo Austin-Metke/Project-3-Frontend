@@ -2,19 +2,29 @@
   "name": "project-3-frontend",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
+  "main": "expo/index.js",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~3.2.3",
     "@tanstack/react-query": "^5.90.5",
     "axios": "^1.13.0",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "react-router-dom": "^7.9.4"
+    "expo": "~51.0.0",
+    "expo-splash-screen": "^31.0.10",
+    "expo-status-bar": "^3.0.8",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-native": "^0.75.4",
+    "react-native-web": "^0.19.13",
+    "react-router-dom": "^7.9.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
@@ -24,8 +34,9 @@
     "@testing-library/user-event": "^14.6.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.6.0",
-    "@types/react": "^19.1.16",
-    "@types/react-dom": "^19.1.9",
+    "@types/react": "~18.2.79",
+    "@types/react-dom": "~18.2.25",
+    "@types/react-native": "^0.72.8",
     "@vitejs/plugin-react": "^5.0.4",
     "autoprefixer": "^10.4.21",
     "cross-env": "^10.1.0",
