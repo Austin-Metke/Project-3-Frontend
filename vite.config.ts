@@ -1,18 +1,32 @@
+// vite.config.ts
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  server: {
+    host: true, 
+    port: 5173,
+  },
   define: {
     global: 'globalThis',
+    __DEV__: true,
+    'process.env': {},
   },
   resolve: {
-    alias: {
-      'react-native': 'react-native-web',
-    },
+    conditions: ['browser', 'development'],
+    alias: [
+      { find: /^react-native$/, replacement: 'react-native-web' },
+    ],
   },
   optimizeDeps: {
     include: ['react-native-web'],
+    exclude: [
+      'react-native',
+      'react-native-safe-area-context',
+      'react-native-gesture-handler',
+      'react-native-reanimated',
+      'react-native-screens',
+    ],
   },
 })
