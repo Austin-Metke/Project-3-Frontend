@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native'
+import { useNavigation } from '@react-navigation/native'
 
 export default function SignUp() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const navigation = useNavigation()
 
   function handleSubmit() {
     if (!name || !email || !password || !confirmPassword) {
@@ -72,7 +74,7 @@ export default function SignUp() {
             <TouchableOpacity style={styles.button} onPress={handleSubmit}>
               <Text style={styles.buttonText}>Sign Up</Text>
             </TouchableOpacity>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('Login' as never)}>
               <Text style={styles.switchText}>Already have an account?</Text>
             </TouchableOpacity>
           </View>
@@ -138,7 +140,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-    button: {
+  button: {
     backgroundColor: '#4CAF50',
     paddingVertical: 12,
     paddingHorizontal: 24,
@@ -153,4 +155,4 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontSize: 14,
   },
-})  
+})

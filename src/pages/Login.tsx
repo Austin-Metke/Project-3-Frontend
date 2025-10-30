@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native'
+import { useNavigation } from '@react-navigation/native'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const navigation = useNavigation()
 
   function handleSubmit() {
     Alert.alert('Login', `Login with ${email} / ${password}`)
@@ -43,8 +45,9 @@ export default function Login() {
             <TouchableOpacity style={styles.button} onPress={handleSubmit}>
               <Text style={styles.buttonText}>Sign in</Text>
             </TouchableOpacity>
-            <TouchableOpacity>
-              <Text style={styles.forgotText}>Forgot?</Text>
+
+            <TouchableOpacity onPress={() => navigation.navigate('SignUp' as never)}>
+              <Text style={styles.forgotText}>Create account</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -121,8 +124,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   forgotText: {
-    color: '#666',
+    color: '#007AFF',
     fontSize: 14,
   },
 })
-
