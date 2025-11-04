@@ -8,20 +8,20 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const navigation = useNavigation()
-  const { loginWithGoogle } = useAuth() // <-- add
+  const { loginWithGoogle, loading: authLoading } = useAuth();
 
 
   async function handleGoogle() {
-  console.log("Google login pressed"); // add this line
-  try {
-    await loginWithGoogle();
-    console.log("Google login succeeded");
-    navigation.navigate("Home" as never);
-  } catch (e: any) {
-    console.error("Google login error:", e);
-    Alert.alert("Google Sign-In", e.message ?? "Failed to sign in");
+    console.log("Google login pressed"); // add this line
+    try {
+      await loginWithGoogle();
+      console.log("Google login succeeded");
+      navigation.navigate("Home" as never);
+    } catch (e: any) {
+      console.error("Google login error:", e);
+      Alert.alert("Google Sign-In", e.message ?? "Failed to sign in");
+    }
   }
-}
 
 
   function handleSubmit() {
@@ -67,6 +67,19 @@ export default function Login() {
               <Text style={styles.forgotText}>Create account</Text>
             </TouchableOpacity>
           </View>
+
+
+          {/* Google OAuth button */}
+          <TouchableOpacity
+            style={[styles.button, { marginTop: 12, backgroundColor: '#DB4437', alignSelf: 'flex-start' }]}
+            onPress={handleGoogle}
+            disabled={authLoading}
+          >
+            <Text style={styles.buttonText}>
+              {authLoading ? 'Loading…' : 'Continue with Google'}
+            </Text>
+          </TouchableOpacity>
+
         </View>
       </View>
     </View>

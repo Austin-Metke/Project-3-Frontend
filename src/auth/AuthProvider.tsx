@@ -7,20 +7,19 @@ import React, {
   useState,
   useCallback,
 } from "react";
-
 import type { ReactNode } from "react";
 
 import { Platform } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import * as SecureStore from "expo-secure-store";
+import * as AuthSession from "expo-auth-session";
 import {
   AuthRequest,
   ResponseType,
   makeRedirectUri,
   fetchDiscoveryAsync,
-  exchangeCodeAsync
+  exchangeCodeAsync,
 } from "expo-auth-session";
-
 import type { DiscoveryDocument } from "expo-auth-session";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -35,38 +34,24 @@ type AuthContextType = {
   logout: () => Promise<void>;
 };
 
-/** ===== Storage (web-safe) =====
- * SecureStore is not available on web, so we fall back to localStorage there.
- */
+/** ===== Storage (web-safe) ===== */
 const storage = {
   async getItem(key: string): Promise<string | null> {
     if (Platform.OS === "web") {
-      try {
-        return window.localStorage.getItem(key);
-      } catch {
-        return null;
-      }
+      try { return window.localStorage.getItem(key); } catch { return null; }
     }
-    try {
-      return await SecureStore.getItemAsync(key);
-    } catch {
-      return null;
-    }
+    try { return await SecureStore.getItemAsync(key); } catch { return null; }
   },
   async setItem(key: string, value: string) {
     if (Platform.OS === "web") {
-      try {
-        window.localStorage.setItem(key, value);
-      } catch {}
+      try { window.localStorage.setItem(key, value); } catch { }
       return;
     }
     await SecureStore.setItemAsync(key, value);
   },
   async removeItem(key: string) {
     if (Platform.OS === "web") {
-      try {
-        window.localStorage.removeItem(key);
-      } catch {}
+      try { window.localStorage.removeItem(key); } catch { }
       return;
     }
     await SecureStore.deleteItemAsync(key);
@@ -78,8 +63,9 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 const TOKEN_KEY = "auth_token";
 const PROFILE_KEY = "auth_profile";
+const ALLOWED_DOMAIN = "csumb.edu";
 
-// Replace with your real Web Client ID from Google Cloud Console
+// Your Google Web Client ID
 const GOOGLE_CLIENT_ID_WEB =
   "965757428397-0qptrjl7r6q4427ur966okjn79erlvde.apps.googleusercontent.com";
 
@@ -105,32 +91,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
+  /** ===== Login with Google (proxy on native) ===== */
   const loginWithGoogle = useCallback(async () => {
     if (!discovery) throw new Error("Auth discovery not ready yet");
 
-    const redirectUri = makeRedirectUri(); // modern Expo picks the right one
+    const isWeb = Platform.OS === "web";
+    const proxyRedirect = AuthSession.makeRedirectUri({ useProxy: true } as any);
+    const directRedirect = AuthSession.makeRedirectUri();
+
+    // Prefer proxy on native (https://auth.expo.dev/...), direct on web (http://localhost:PORT)
+    const redirectUri = isWeb ? directRedirect : proxyRedirect;
+
     const request = new AuthRequest({
       clientId: GOOGLE_CLIENT_ID_WEB,
       redirectUri,
-      responseType: ResponseType.Code, // Authorization Code with PKCE
+      responseType: ResponseType.Code,     // Auth Code + PKCE
       scopes: ["openid", "email", "profile"],
+      extraParams: { hd: ALLOWED_DOMAIN }, // hint; real enforcement below
     });
 
-    // Prebuild URL (optional but helpful)
     await request.makeAuthUrlAsync(discovery);
 
-    const result = await request.promptAsync(discovery);
+    const toMsg = (e: unknown) =>
+      typeof e === "string" ? e : (e as any)?.message ?? String(e ?? "OAuth error");
+
+    // Tell promptAsync to use the proxy on native. Cast to any to satisfy older SDK types.
+    const result = await request.promptAsync(discovery, { useProxy: !isWeb } as any);
+
+    console.log("[OAuth] redirectUri:", redirectUri);
+    console.log("[OAuth] result:", (result as any).type);
+
+    // Some SDK typings only expose "success" | "error", but native can return "dismiss"
+    if ((result as any).type === "dismiss") {
+      throw new Error("Sign-in dismissed");
+    }
+    if (result.type === "error") {
+      throw new Error(toMsg((result as any).error));
+    }
     if (result.type !== "success" || !result.params?.code) {
-      throw new Error("Google sign-in canceled or failed");
+      throw new Error("No authorization code returned");
     }
 
-    // Exchange auth code for tokens (PKCE verifier attached to the request)
     const tokenResponse = await exchangeCodeAsync(
       {
         clientId: GOOGLE_CLIENT_ID_WEB,
         code: result.params.code,
         redirectUri,
-        // Some SDKs auto-attach PKCE; passing it explicitly is safe:
         extraParams: request.codeVerifier
           ? { code_verifier: request.codeVerifier }
           : undefined,
@@ -138,24 +144,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       discovery
     );
 
-    // Fetch user profile with access token
-    const profileRes = await fetch(
-      "https://openidconnect.googleapis.com/v1/userinfo",
-      { headers: { Authorization: `Bearer ${tokenResponse.accessToken}` } }
-    );
+    // Fetch profile
+    const profileRes = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+      headers: { Authorization: `Bearer ${tokenResponse.accessToken}` },
+    });
     if (!profileRes.ok) throw new Error("Failed to fetch user info");
     const profile = await profileRes.json();
 
+    // Enforce CSUMB-only
+    const email: string | undefined = profile?.email?.toLowerCase?.();
+    if (!email || !email.endsWith(`@${ALLOWED_DOMAIN}`)) {
+      await storage.removeItem(TOKEN_KEY);
+      await storage.removeItem(PROFILE_KEY);
+      setUser(null);
+      throw new Error("Please sign in with your CSUMB account.");
+    }
+
     await storage.setItem(TOKEN_KEY, JSON.stringify(tokenResponse));
     await storage.setItem(PROFILE_KEY, JSON.stringify(profile));
-
-    setUser({
-      name: profile.name,
-      email: profile.email,
-      picture: profile.picture,
-    });
+    setUser({ name: profile.name, email: profile.email, picture: profile.picture });
   }, [discovery]);
 
+  /** ===== Logout ===== */
   const logout = useCallback(async () => {
     await storage.removeItem(TOKEN_KEY);
     await storage.removeItem(PROFILE_KEY);

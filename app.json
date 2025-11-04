@@ -1,6 +1,7 @@
 {
   "expo": {
     "sdkVersion": "54.0.0",
+    "scheme": "ecopoints",
     "name": "EcoPoints",
     "slug": "ecopoints-app",
     "version": "1.0.0",
