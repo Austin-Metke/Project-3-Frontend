@@ -1,11 +1,28 @@
 import { useState } from 'react'
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
+import { useAuth } from '../auth/AuthProvider' // <-- add
+
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const navigation = useNavigation()
+  const { loginWithGoogle } = useAuth() // <-- add
+
+
+  async function handleGoogle() {
+  console.log("Google login pressed"); // add this line
+  try {
+    await loginWithGoogle();
+    console.log("Google login succeeded");
+    navigation.navigate("Home" as never);
+  } catch (e: any) {
+    console.error("Google login error:", e);
+    Alert.alert("Google Sign-In", e.message ?? "Failed to sign in");
+  }
+}
+
 
   function handleSubmit() {
     Alert.alert('Login', `Login with ${email} / ${password}`)
