@@ -54,9 +54,6 @@
   background: white;
   border-radius: 12px;
   padding: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: transform 0.2s;
 }
@@ -80,10 +77,6 @@
 
 .stat-card-warning {
   border-left: 4px solid #9C27B0;
-}
-
-.stat-icon {
-  font-size: 2.5rem;
 }
 
 .stat-content h3 {
@@ -189,21 +182,11 @@
   background: #f8f9fa;
   border-radius: 8px;
   transition: background 0.2s;
+  border-left: 3px solid #ddd;
 }
 
 .activity-item:hover {
   background: #e9ecef;
-}
-
-.activity-icon {
-  font-size: 2rem;
-  width: 50px;
-  height: 50px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: white;
-  border-radius: 8px;
 }
 
 .activity-content {
@@ -243,8 +226,8 @@
 
 .action-btn {
   display: flex;
-  flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   padding: 1.5rem;
   background: white;
@@ -262,10 +245,6 @@
   background: #f1f8f4;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
-}
-
-.action-icon {
-  font-size: 2rem;
 }
 
 /* Empty State */
@@ -361,10 +340,6 @@
 
   .stat-card {
     padding: 1rem;
-  }
-
-  .stat-icon {
-    font-size: 2rem;
   }
 
   .stat-value {
