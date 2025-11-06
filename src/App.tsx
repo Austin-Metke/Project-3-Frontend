@@ -7,7 +7,6 @@ import Login from './pages/Login'
 import SignUp from './pages/SignUp'
 import { AuthProvider } from './auth/AuthProvider'
 
-
 const Stack = createNativeStackNavigator()
 
 export default function App() {

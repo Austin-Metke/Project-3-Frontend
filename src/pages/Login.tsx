@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import {
   View,
@@ -9,7 +8,7 @@ import {
   Image,
   Platform,
 } from "react-native";
-import { useAuth } from "../auth/AuthProvider.tsx";
+import { useAuth } from "../auth/AuthProvider"; // cleaned path
 
 const GoogleLogo = () => (
   <View style={styles.googleMark}>
@@ -20,12 +19,6 @@ const GoogleLogo = () => (
   </View>
 );
 
-/**
- * Login screen
- * - Works with the refactored AuthProvider (personal Google accounts allowed)
- * - Clear loading & error states
- * - Friendly UX on native & web
- */
 const Login: React.FC = () => {
   const { user, loading, signInWithGoogle, signOut } = useAuth();
   const [submitting, setSubmitting] = useState(false);
@@ -232,7 +225,6 @@ const styles = StyleSheet.create({
   avatarFallback: {
     backgroundColor: "#E5E7EB",
   },
-  // Simple Google "G" mark constructed with arcs
   googleMark: {
     width: 56,
     height: 56,
@@ -247,22 +239,10 @@ const styles = StyleSheet.create({
     borderWidth: 6,
     borderColor: "transparent",
   },
-  arcBlue: {
-    borderTopColor: "#4285F4",
-    transform: [{ rotate: "0deg" }],
-  },
-  arcRed: {
-    borderRightColor: "#EA4335",
-    transform: [{ rotate: "90deg" }],
-  },
-  arcYellow: {
-    borderBottomColor: "#FBBC05",
-    transform: [{ rotate: "180deg" }],
-  },
-  arcGreen: {
-    borderLeftColor: "#34A853",
-    transform: [{ rotate: "270deg" }],
-  },
+  arcBlue: { borderTopColor: "#4285F4", transform: [{ rotate: "0deg" }] },
+  arcRed: { borderRightColor: "#EA4335", transform: [{ rotate: "90deg" }] },
+  arcYellow: { borderBottomColor: "#FBBC05", transform: [{ rotate: "180deg" }] },
+  arcGreen: { borderLeftColor: "#34A853", transform: [{ rotate: "270deg" }] },
 });
 
 export default Login;

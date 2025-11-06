@@ -1,3 +1,4 @@
+// auth/AuthProvider.tsx
 import * as WebBrowser from "expo-web-browser";
 WebBrowser.maybeCompleteAuthSession();
 
@@ -10,22 +11,19 @@ import React, {
   useState,
 } from "react";
 import * as AuthSession from "expo-auth-session";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Platform } from "react-native";
+import * as SecureStore from "expo-secure-store";
+import Constants from "expo-constants";
 
-const discovery = {
-  authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
-  tokenEndpoint: "https://oauth2.googleapis.com/token",
-  revocationEndpoint: "https://oauth2.googleapis.com/revoke",
-};
+// ====== Config ======
+const ISSUER = "https://accounts.google.com";
+const GOOGLE_CLIENT_ID =
+  "965757428397-ftt72l7d8gnpdrkmftu3jne5clc2otkm.apps.googleusercontent.com"; // your Web client id
 
-// Replace this with your Google Cloud Web Client ID
-const GOOGLE_CLIENT_ID_WEB =
-  "965757428397-ftt72l7d8gnpdrkmftu3jne5clc2otkm.apps.googleusercontent.com";
-
-const TOKEN_KEY = "auth.tokens.v1";
+// SecureStore keys
+const TOKEN_KEY = "auth.tokens.v1.secure";
 const PROFILE_KEY = "auth.profile.v1";
 
+// ====== Types ======
 export type AuthUser = {
   id: string;
   name?: string;
@@ -35,9 +33,10 @@ export type AuthUser = {
 
 type Tokens = {
   access_token: string;
-  expires_in: number;
-  obtained_at: number;
+  expires_in: number;   // seconds
+  obtained_at: number;  // ms epoch
   id_token?: string;
+  refresh_token?: string;
 };
 
 type AuthContextShape = {
@@ -55,111 +54,191 @@ export const useAuth = () => {
   return ctx;
 };
 
+// ====== Helpers ======
 function isExpired(tokens: Tokens | null) {
   if (!tokens) return true;
-  const now = Date.now();
-  const expiresAt = tokens.obtained_at + tokens.expires_in * 1000 - 30_000;
-  return now >= expiresAt;
+  const expiresAt = tokens.obtained_at + tokens.expires_in * 1000 - 30_000; // refresh 30s early
+  return Date.now() >= expiresAt;
 }
 
 async function fetchGoogleProfile(accessToken: string): Promise<AuthUser> {
-  const res = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+  const r = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  if (!res.ok) throw new Error("Failed to fetch profile");
-  const data = await res.json();
-  return {
-    id: data.sub,
-    name: data.name,
-    email: data.email,
-    picture: data.picture,
-  };
+  if (!r.ok) throw new Error("Failed to fetch userinfo");
+  const j = await r.json();
+  return { id: j.sub, name: j.name, email: j.email, picture: j.picture };
 }
 
-export const AuthProvider: React.FC<React.PropsWithChildren> = ({
-  children,
-}) => {
+// ====== Provider ======
+export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [discovery, setDiscovery] =
+    useState<AuthSession.DiscoveryDocument | null>(null);
 
-  // ✅ Let useAuthRequest manage the correct redirect (Expo proxy on native)
-  const useProxy = Platform.OS !== "web";
+  // Derive the correct redirect for the current runtime
+  const redirectUri = useMemo(() => {
+    const cfg: any = Constants.expoConfig ?? {};
+    const owner = cfg.owner || cfg.username || "your-expo-username";
+    const slug = cfg.slug || "ecopoints-app";
+    const isExpoGo = Constants.appOwnership === "expo"; // true when running inside Expo Go
 
-  const [request, , promptAsync] = AuthSession.useAuthRequest(
+    // In Expo Go: use HTTPS proxy (must be in Google "Authorized redirect URIs")
+    if (isExpoGo) return `https://auth.expo.io/@${owner}/${slug}`;
+
+    // In standalone/dev builds: use your app scheme deep link
+    return AuthSession.makeRedirectUri({ scheme: "ecopoints" });
+  }, []);
+
+  // Log the redirect so you can paste it into Google OAuth settings
+  useEffect(() => {
+    console.log("Auth redirect URI being used:", redirectUri);
+  }, [redirectUri]);
+
+  // Fetch discovery
+  useEffect(() => {
+    AuthSession.fetchDiscoveryAsync(ISSUER).then(setDiscovery);
+  }, []);
+
+  // Build the request (PKCE, code flow)
+  const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
-      clientId: GOOGLE_CLIENT_ID_WEB,
+      clientId: GOOGLE_CLIENT_ID,
+      redirectUri, // ✅ explicit (proxy on Expo Go, scheme on builds)
       responseType: AuthSession.ResponseType.Code,
+      usePKCE: true,
       scopes: ["openid", "email", "profile"],
-      prompt: AuthSession.Prompt.SelectAccount,
-      redirectUri: AuthSession.makeRedirectUri(),
+      // Ask for a refresh token during development / explicit consent
+      extraParams: { access_type: "offline", prompt: "consent" },
     },
-    discovery, // important: drives proxy vs direct
+    discovery
   );
 
+  // Hydrate from storage on app start
   useEffect(() => {
     (async () => {
       try {
-        const [tokRaw, profileRaw] = await Promise.all([
-          AsyncStorage.getItem(TOKEN_KEY),
-          AsyncStorage.getItem(PROFILE_KEY),
+        const [tRaw, pRaw] = await Promise.all([
+          SecureStore.getItemAsync(TOKEN_KEY),
+          SecureStore.getItemAsync(PROFILE_KEY),
         ]);
-        const tokens = tokRaw ? JSON.parse(tokRaw) : null;
-        const profile = profileRaw ? JSON.parse(profileRaw) : null;
-        if (tokens && !isExpired(tokens) && profile) {
-          setUser(profile);
-        } else {
-          await AsyncStorage.multiRemove([TOKEN_KEY, PROFILE_KEY]);
+        const tokens: Tokens | null = tRaw ? JSON.parse(tRaw) : null;
+        const profile: AuthUser | null = pRaw ? JSON.parse(pRaw) : null;
+
+        if (tokens && profile) {
+          if (isExpired(tokens) && tokens.refresh_token && discovery?.tokenEndpoint) {
+            const refreshed = await refreshTokens(tokens.refresh_token, discovery.tokenEndpoint);
+            if (refreshed) {
+              await persistTokens(refreshed);
+              setUser(profile);
+              setLoading(false);
+              return;
+            }
+          }
+          if (!isExpired(tokens)) {
+            setUser(profile);
+          } else {
+            await SecureStore.deleteItemAsync(TOKEN_KEY);
+            await SecureStore.deleteItemAsync(PROFILE_KEY);
+          }
         }
       } catch (e) {
-        console.warn("Auth hydrate failed", e);
+        console.warn("Auth hydrate error:", e);
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [discovery]);
 
+  // Handle OAuth response (code -> token)
+  useEffect(() => {
+    (async () => {
+      if (response?.type !== "success" || !request || !discovery?.tokenEndpoint) return;
+      const { code } = response.params;
+      if (!code) return;
+
+      if (!request.codeVerifier) return;
+      try {
+        const tokenRes = await AuthSession.exchangeCodeAsync(
+          {
+            clientId: GOOGLE_CLIENT_ID,
+            code,
+            redirectUri,                         // use the same redirect we sent
+            extraParams: {
+              code_verifier: request.codeVerifier,
+            },
+          },
+          discovery
+        );
+
+        const tokens: Tokens = {
+          access_token: tokenRes.accessToken!,
+          expires_in: tokenRes.expiresIn ?? 3600,
+          obtained_at: Date.now(),
+          id_token: tokenRes.idToken ?? undefined,
+          refresh_token: (tokenRes as any).refreshToken ?? undefined,
+        };
+
+        await persistTokens(tokens);
+        const profile = await fetchGoogleProfile(tokens.access_token);
+        await SecureStore.setItemAsync(PROFILE_KEY, JSON.stringify(profile));
+        setUser(profile);
+      } catch (e) {
+        console.error("Token exchange failed:", e);
+      }
+    })();
+  }, [response, discovery, request, redirectUri]);
+
+  // ----- helpers -----
+  async function persistTokens(t: Tokens) {
+    await SecureStore.setItemAsync(TOKEN_KEY, JSON.stringify(t));
+  }
+
+  async function refreshTokens(refreshToken: string, tokenEndpoint: string): Promise<Tokens | null> {
+    try {
+      const body = new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+        client_id: GOOGLE_CLIENT_ID,
+      });
+      const res = await fetch(tokenEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body.toString(),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        console.log("Refresh failed:", json);
+        return null;
+      }
+      const next: Tokens = {
+        access_token: json.access_token,
+        expires_in: json.expires_in ?? 3600,
+        obtained_at: Date.now(),
+        id_token: json.id_token ?? undefined,
+        refresh_token: json.refresh_token ?? refreshToken, // many providers omit on refresh
+      };
+      return next;
+    } catch (e) {
+      console.log("Refresh error:", (e as Error).message);
+      return null;
+    }
+  }
+
+  // ----- public API -----
   const signInWithGoogle = useCallback(async () => {
-    if (!request) throw new Error("Auth request not ready yet");
-
-    // No options here; useProxy already set in the hook
-    const result = await promptAsync();
+    if (!request) throw new Error("Sign-in not ready yet");
+    const result = await promptAsync(); // library handles proxy vs scheme
     if (result.type !== "success") {
       if (result.type === "dismiss" || result.type === "cancel") return;
       throw new Error((result as any)?.error ?? "Authentication cancelled");
     }
-
-    const { code } = result.params;
-    if (!code) throw new Error("No authorization code returned");
-
-    // Use the exact redirectUri that the request used (proxy on native)
-    const redirectUsed = (request as any)?.redirectUri ?? AuthSession.makeRedirectUri();
-
-    const tokenRes = await AuthSession.exchangeCodeAsync(
-      {
-        clientId: GOOGLE_CLIENT_ID_WEB,
-        code,
-        redirectUri: redirectUsed,
-      },
-      discovery
-    );
-
-    const tokens: Tokens = {
-      access_token: tokenRes.accessToken!,
-      expires_in: tokenRes.expiresIn ?? 3600,
-      obtained_at: Date.now(),
-      id_token: tokenRes.idToken ?? undefined,
-    };
-
-    const profile = await fetchGoogleProfile(tokens.access_token);
-    console.log("✅ Signed in user:", profile?.email ?? profile?.id);
-
-    await AsyncStorage.setItem(TOKEN_KEY, JSON.stringify(tokens));
-    await AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-    setUser(profile);
   }, [promptAsync, request]);
 
   const signOut = useCallback(async () => {
-    await AsyncStorage.multiRemove([TOKEN_KEY, PROFILE_KEY]);
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    await SecureStore.deleteItemAsync(PROFILE_KEY);
     setUser(null);
   }, []);
 
@@ -168,7 +247,5 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
     [user, loading, signInWithGoogle, signOut]
   );
 
-  return (
-    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

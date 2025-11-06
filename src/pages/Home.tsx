@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native'
 import { useAuth } from '../auth/AuthProvider'
 
 export default function Home({ navigation }: any) {
-  const { user, logout } = useAuth()
+  const { user, signOut } = useAuth() // <-- use signOut exposed by provider
 
   return (
     <View style={styles.container}>
@@ -14,7 +14,7 @@ export default function Home({ navigation }: any) {
         <>
           {user.picture ? <Image source={{ uri: user.picture }} style={{ width: 64, height: 64, borderRadius: 32, marginBottom: 12 }} /> : null}
           <Text style={{ marginBottom: 16 }}>Signed in as {user.name ?? user.email}</Text>
-          <TouchableOpacity style={[styles.button, styles.signupButton]} onPress={logout}>
+          <TouchableOpacity style={[styles.button, styles.signupButton]} onPress={signOut}>
             <Text style={styles.buttonText}>Logout</Text>
           </TouchableOpacity>
         </>
