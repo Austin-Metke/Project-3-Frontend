@@ -30,6 +30,21 @@
   font-size: 1rem;
 }
 
+.info-banner {
+  background: #e3f2fd;
+  border: 1px solid #90caf9;
+  color: #1565c0;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.info-banner strong {
+  font-weight: 700;
+}
+
 .error-banner {
   background: #fee;
   border: 1px solid #fcc;
@@ -98,6 +113,45 @@
   background: #ccc;
   cursor: not-allowed;
   transform: none;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.5rem 0;
+  color: #999;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.divider span {
+  padding: 0 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.btn-demo {
+  width: 100%;
+  padding: 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-demo:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
 }
 
 .auth-footer {

@@ -42,11 +42,28 @@ export default function SignUp() {
     }
   }
 
+  // Demo mode - bypass API for testing
+  function handleDemoSignUp() {
+    // Create a fake auth token for demo
+    localStorage.setItem('authToken', 'demo-token-12345')
+    localStorage.setItem('user', JSON.stringify({
+      id: 'demo-user',
+      name: name || 'Demo User',
+      email: email || 'demo@ecopoints.com',
+      totalPoints: 0
+    }))
+    navigate('/dashboard-preview')
+  }
+
   return (
     <div className="auth-container">
       <div className="auth-card">
         <h1>🌱 Join EcoPoints</h1>
         <p className="auth-subtitle">Create your account and start making an impact</p>
+
+        <div className="info-banner">
+          ℹ️ Backend not connected yet? Use <strong>Demo Mode</strong> to explore the UI!
+        </div>
 
         {error && (
           <div className="error-banner">
@@ -115,6 +132,18 @@ export default function SignUp() {
             disabled={loading}
           >
             {loading ? 'Creating account...' : 'Sign Up'}
+          </button>
+
+          <div className="divider">
+            <span>OR</span>
+          </div>
+
+          <button 
+            type="button"
+            className="btn-demo" 
+            onClick={handleDemoSignUp}
+          >
+            🎨 Try Demo Mode (No Backend Required)
           </button>
 
           <div className="auth-footer">
