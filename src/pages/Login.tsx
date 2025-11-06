@@ -1,130 +1,85 @@
 import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigate, Link } from 'react-router-dom'
+import apiService from '../services/api'
+import './Auth.css'
 
 export default function Login() {
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const navigation = useNavigation()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  function handleSubmit() {
-    Alert.alert('Login', `Login with ${email} / ${password}`)
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+
+    try {
+      await apiService.login({ email, password })
+      navigate('/dashboard')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Log in</Text>
-        <Text style={styles.subtitle}>Sign in to your EcoPoints account</Text>
+    <div className="auth-container">
+      <div className="auth-card">
+        <h1>🌱 Log in to EcoPoints</h1>
+        <p className="auth-subtitle">Sign in to track your eco-friendly journey</p>
 
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
+        {error && (
+          <div className="error-banner">
+            ⚠️ {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
               value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              placeholder="Enter your email"
+              onChange={e => setEmail(e.target.value)}
+              placeholder="your.email@example.com"
+              required
+              disabled={loading}
             />
-          </View>
+          </div>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
               value={password}
-              onChangeText={setPassword}
-              secureTextEntry
+              onChange={e => setPassword(e.target.value)}
               placeholder="Enter your password"
+              required
+              disabled={loading}
             />
-          </View>
+          </div>
 
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-              <Text style={styles.buttonText}>Sign in</Text>
-            </TouchableOpacity>
+          <button 
+            className="btn-submit" 
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? 'Signing in...' : 'Sign in'}
+          </button>
 
-            <TouchableOpacity onPress={() => navigation.navigate('SignUp' as never)}>
-              <Text style={styles.forgotText}>Create account</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </View>
+          <div className="auth-footer">
+            <p>
+              Don't have an account? <Link to="/signup">Sign up</Link>
+            </p>
+          </div>
+        </form>
+      </div>
+    </div>
   )
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 24,
-    maxWidth: 420,
-    alignSelf: 'center',
-    width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 24,
-  },
-  form: {
-    gap: 16,
-  },
-  inputGroup: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#fafafa',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  forgotText: {
-    color: '#007AFF',
-    fontSize: 14,
-  },
-})
