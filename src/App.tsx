@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
+import DashboardMock from './pages/DashboardMock'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
 import './App.css'
@@ -23,6 +24,9 @@ function App() {
       <Route path="/home" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
+      
+      {/* Mock Dashboard - for UI testing without backend */}
+      <Route path="/dashboard-preview" element={<DashboardMock />} />
       
       {/* Protected Routes */}
       <Route 
