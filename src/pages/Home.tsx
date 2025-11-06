@@ -1,37 +1,49 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { useNavigate } from 'react-router-dom'
+import './Home.css'
 
-export default function Home({ navigation }: any) {
+export default function Home() {
+  const navigate = useNavigate()
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Welcome to EcoPoints</Text>
-      <Text style={styles.subtitle}>Choose an option to continue</Text>
+    <div className="home-container">
+      <div className="home-content">
+        <h1 className="home-title">🌱 Welcome to EcoPoints</h1>
+        <p className="home-subtitle">Track your eco-friendly actions and earn points for making a difference</p>
 
-      <View style={styles.buttons}>
-        <TouchableOpacity
-          style={[styles.button, styles.loginButton]}
-          onPress={() => navigation.navigate('Login')}
-        >
-          <Text style={styles.buttonText}>Login</Text>
-        </TouchableOpacity>
+        <div className="home-buttons">
+          <button
+            className="btn btn-login"
+            onClick={() => navigate('/login')}
+          >
+            Login
+          </button>
 
-        <TouchableOpacity
-          style={[styles.button, styles.signupButton]}
-          onPress={() => navigation.navigate('SignUp')}
-        >
-          <Text style={styles.buttonText}>Sign Up</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+          <button
+            className="btn btn-signup"
+            onClick={() => navigate('/signup')}
+          >
+            Sign Up
+          </button>
+        </div>
+
+        <div className="home-features">
+          <div className="feature">
+            <span className="feature-icon">🏆</span>
+            <h3>Earn Points</h3>
+            <p>Log eco-friendly activities and watch your points grow</p>
+          </div>
+          <div className="feature">
+            <span className="feature-icon">📊</span>
+            <h3>Track Progress</h3>
+            <p>See your impact with detailed stats and charts</p>
+          </div>
+          <div className="feature">
+            <span className="feature-icon">🏅</span>
+            <h3>Compete Globally</h3>
+            <p>Join leaderboards and challenge your friends</p>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 20 },
-  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 10, color: '#333' },
-  subtitle: { fontSize: 16, color: '#666', marginBottom: 30 },
-  buttons: { gap: 16, width: '100%', maxWidth: 300 },
-  button: { paddingVertical: 14, borderRadius: 8, alignItems: 'center' },
-  loginButton: { backgroundColor: '#007AFF' },
-  signupButton: { backgroundColor: '#4CAF50' },
-  buttonText: { color: 'white', fontSize: 16, fontWeight: '600' },
-})

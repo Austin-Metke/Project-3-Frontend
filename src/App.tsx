@@ -1,20 +1,46 @@
-import 'react-native-gesture-handler'
-import { NavigationContainer } from '@react-navigation/native'
-import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import Home from './pages/Home'
+import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
+import './App.css'
 
-const Stack = createNativeStackNavigator()
+// Protected Route component
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const token = localStorage.getItem('authToken')
+  
+  if (!token) {
+    return <Navigate to="/login" replace />
+  }
+  
+  return <>{children}</>
+}
 
-export default function App() {
+function App() {
   return (
-    <NavigationContainer>
-      <Stack.Navigator initialRouteName="Home">
-        <Stack.Screen name="Home" component={Home} />
-        <Stack.Screen name="Login" component={Login} />
-        <Stack.Screen name="SignUp" component={SignUp} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/home" element={<Home />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<SignUp />} />
+      
+      {/* Protected Routes */}
+      <Route 
+        path="/dashboard" 
+        element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* Redirect root to dashboard */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      
+      {/* Catch all - redirect to dashboard */}
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
   )
 }
+
+export default App

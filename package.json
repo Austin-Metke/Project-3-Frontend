@@ -2,21 +2,15 @@
   "name": "project-3-frontend",
   "private": true,
   "version": "0.0.0",
-  "main": "expo/index.js",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@expo/metro-runtime": "~3.2.3",
-    "@react-navigation/native": "^7.1.19",
-    "@react-navigation/native-stack": "^7.6.1",
     "@tanstack/react-query": "^5.90.5",
     "axios": "^1.13.0",
     "expo": "~51.0.0",
@@ -25,9 +19,6 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-native": "^0.75.4",
-    "react-native-gesture-handler": "^2.29.0",
-    "react-native-safe-area-context": "^4.14.1",
-    "react-native-screens": "^4.18.0",
     "react-native-web": "^0.19.13",
     "react-router-dom": "^7.9.5"
   },
