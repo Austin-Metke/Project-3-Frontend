@@ -182,10 +182,10 @@ export default function DashboardMock() {
           <button className="action-btn" onClick={() => alert('Leaderboard page coming soon!')}>
             <span>Leaderboard</span>
           </button>
-          <button className="action-btn" onClick={() => alert('Weekly challenges coming soon!')}>
+          <button className="action-btn" onClick={() => navigate('/challenges')}>
             <span>Challenges</span>
           </button>
-          <button className="action-btn" onClick={() => alert('Badges system coming soon!')}>
+          <button className="action-btn" onClick={() => navigate('/badges')}>
             <span>Badges</span>
           </button>
         </div>

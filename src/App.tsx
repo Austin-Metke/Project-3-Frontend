@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import DashboardMock from './pages/DashboardMock'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
+import { Challenges, Badges } from './pages/DaskboardTabsPages'
 import './App.css'
 
 // Protected Route component
@@ -27,6 +28,8 @@ function App() {
       
       {/* Mock Dashboard - for UI testing without backend */}
       <Route path="/dashboard-preview" element={<DashboardMock />} />
+      <Route path="/challenges" element={<Challenges />} />
+  <Route path="/badges" element={<Badges />} />
       
       {/* Protected Routes */}
       <Route 
