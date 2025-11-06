@@ -7,8 +7,8 @@ export default function Home() {
   return (
     <div className="home-container">
       <div className="home-content">
-        <h1 className="home-title">🌱 Welcome to EcoPoints</h1>
-        <p className="home-subtitle">Track your eco-friendly actions and earn points for making a difference</p>
+        <h1 className="home-title">EcoPoints</h1>
+        <p className="home-subtitle">Track your eco-friendly actions and earn points</p>
 
         <div className="home-buttons">
           <button
@@ -28,19 +28,16 @@ export default function Home() {
 
         <div className="home-features">
           <div className="feature">
-            <span className="feature-icon">🏆</span>
             <h3>Earn Points</h3>
-            <p>Log eco-friendly activities and watch your points grow</p>
+            <p>Log eco-friendly activities</p>
           </div>
           <div className="feature">
-            <span className="feature-icon">📊</span>
             <h3>Track Progress</h3>
-            <p>See your impact with detailed stats and charts</p>
+            <p>See your stats over time</p>
           </div>
           <div className="feature">
-            <span className="feature-icon">🏅</span>
-            <h3>Compete Globally</h3>
-            <p>Join leaderboards and challenge your friends</p>
+            <h3>Compete</h3>
+            <p>Join the leaderboard</p>
           </div>
         </div>
       </div>

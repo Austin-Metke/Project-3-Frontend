@@ -79,12 +79,6 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.feature-icon {
-  font-size: 3rem;
-  display: block;
-  margin-bottom: 1rem;
-}
-
 .feature h3 {
   margin: 0 0 0.5rem 0;
   font-size: 1.25rem;

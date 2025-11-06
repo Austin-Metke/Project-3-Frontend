@@ -34,25 +34,21 @@
   background: #e3f2fd;
   border: 1px solid #90caf9;
   color: #1565c0;
-  padding: 1rem;
+  padding: 0.875rem;
   border-radius: 8px;
   margin-bottom: 1.5rem;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   text-align: center;
-}
-
-.info-banner strong {
-  font-weight: 700;
 }
 
 .error-banner {
   background: #fee;
   border: 1px solid #fcc;
   color: #c33;
-  padding: 1rem;
+  padding: 0.875rem;
   border-radius: 8px;
   margin-bottom: 1.5rem;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .form-group {
@@ -132,26 +128,26 @@
 
 .divider span {
   padding: 0 1rem;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.8rem;
+  font-weight: 400;
 }
 
 .btn-demo {
   width: 100%;
-  padding: 1rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 0.875rem;
+  background: #667eea;
   color: white;
   border: none;
   border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .btn-demo:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+  background: #5568d3;
+  transform: translateY(-1px);
 }
 
 .auth-footer {

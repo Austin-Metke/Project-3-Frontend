@@ -41,16 +41,12 @@ export default function Login() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1>🌱 Log in to EcoPoints</h1>
-        <p className="auth-subtitle">Sign in to track your eco-friendly journey</p>
-
-        <div className="info-banner">
-          ℹ️ Backend not connected yet? Use <strong>Demo Mode</strong> to explore the UI!
-        </div>
+        <h1>Login</h1>
+        <p className="auth-subtitle">Sign in to your account</p>
 
         {error && (
           <div className="error-banner">
-            ⚠️ {error}
+            {error}
           </div>
         )}
 
@@ -86,11 +82,11 @@ export default function Login() {
             type="submit"
             disabled={loading}
           >
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loading ? 'Signing in...' : 'Login'}
           </button>
 
           <div className="divider">
-            <span>OR</span>
+            <span>or</span>
           </div>
 
           <button 
@@ -98,7 +94,7 @@ export default function Login() {
             className="btn-demo" 
             onClick={handleDemoLogin}
           >
-            🎨 Try Demo Mode (No Backend Required)
+            Demo Mode (Testing)
           </button>
 
           <div className="auth-footer">

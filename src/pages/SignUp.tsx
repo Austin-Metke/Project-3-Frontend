@@ -58,16 +58,12 @@ export default function SignUp() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1>🌱 Join EcoPoints</h1>
-        <p className="auth-subtitle">Create your account and start making an impact</p>
-
-        <div className="info-banner">
-          ℹ️ Backend not connected yet? Use <strong>Demo Mode</strong> to explore the UI!
-        </div>
+        <h1>Sign Up</h1>
+        <p className="auth-subtitle">Create a new account</p>
 
         {error && (
           <div className="error-banner">
-            ⚠️ {error}
+            {error}
           </div>
         )}
 
@@ -135,7 +131,7 @@ export default function SignUp() {
           </button>
 
           <div className="divider">
-            <span>OR</span>
+            <span>or</span>
           </div>
 
           <button 
@@ -143,7 +139,7 @@ export default function SignUp() {
             className="btn-demo" 
             onClick={handleDemoSignUp}
           >
-            🎨 Try Demo Mode (No Backend Required)
+            Demo Mode (Testing)
           </button>
 
           <div className="auth-footer">
