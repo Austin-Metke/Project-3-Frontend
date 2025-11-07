@@ -25,7 +25,7 @@ function App() {
       {/* Public Routes */}
       <Route path="/home" element={<Home />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<SignUp />} />
+      <Route path="/signup" element={<SignUp />} />a
       <Route path="/auth/github/callback" element={<GitHubCallback />} />
       
       {/* Mock Dashboard - for UI testing without backend */}
