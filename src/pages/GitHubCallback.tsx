@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import githubAuthService from '../services/githubAuth'
+import apiService from '../services/api'
 import './Auth.css'
 
 export default function GitHubCallback() {
@@ -10,41 +10,56 @@ export default function GitHubCallback() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    handleCallback()
-  }, [])
+    let mounted = true
+    ;(async () => {
+      const code = searchParams.get('code')
+      const state = searchParams.get('state')
+      const token = searchParams.get('token')
+      const errorParam = searchParams.get('error')
 
-  async function handleCallback() {
-    const code = searchParams.get('code')
-    const state = searchParams.get('state')
-    const errorParam = searchParams.get('error')
+      // Check for errors from GitHub
+      if (errorParam) {
+        if (!mounted) return
+        setError('GitHub authentication was cancelled or failed')
+        setLoading(false)
+        return
+      }
 
-    // Check for errors from GitHub
-    if (errorParam) {
-      setError('GitHub authentication was cancelled or failed')
-      setLoading(false)
-      return
-    }
+      // Backend-managed OAuth may redirect with a token
+      if (token) {
+        localStorage.setItem('authToken', token)
+        // Optionally fetch user profile here when backend exposes /auth/me
+        navigate('/dashboard-preview')
+        return
+      }
 
-    if (!code || !state) {
-      setError('Invalid callback parameters')
-      setLoading(false)
-      return
-    }
+      if (!code || !state) {
+        if (!mounted) return
+        setError('Invalid callback parameters')
+        setLoading(false)
+        return
+      }
 
-    try {
-      // ⚠️ BACKEND INTEGRATION POINT
-      // When backend is ready, replace this with:
-      // await apiService.githubCallback({ code, state })
-      
-      await githubAuthService.handleCallback(code, state)
-      
-      // Redirect to dashboard on success
-      navigate('/dashboard-preview')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Authentication failed')
-      setLoading(false)
-    }
-  }
+      try {
+        // Call backend to exchange code for token + user profile
+        const result = await apiService.exchangeOAuthCode('github', code, state)
+        if (!mounted) return
+        if (result && result.token) {
+          // apiService.exchangeOAuthCode already stores token and user in localStorage
+          navigate('/dashboard-preview')
+          return
+        }
+        setError('Failed to obtain authentication token from server')
+      } catch (err) {
+        if (!mounted) return
+        setError(err instanceof Error ? err.message : 'Authentication failed')
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    })()
+
+    return () => { mounted = false }
+  }, [navigate, searchParams])
 
   if (error) {
     return (

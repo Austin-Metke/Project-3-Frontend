@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import apiService from '../../services/api'
 import './Challenges.css'
 
 // Mock data for testing UI without backend
@@ -68,26 +69,34 @@ export default function Challenges() {
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all')
 
   useEffect(() => {
-    // ⚠️ BACKEND INTEGRATION POINT
-    // Replace this mock data fetch with actual API call
     fetchChallenges()
   }, [])
 
   async function fetchChallenges() {
+    setLoading(true)
     try {
-      setLoading(true)
-      
-      // ⚠️ TODO: Replace with actual API call when backend is ready
-      // Example:
-      // const response = await apiService.getChallenges()
-      // setChallenges(response.data)
-      
-      // Simulating API delay for now
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Prefer backend challenges if available
+      const userStr = localStorage.getItem('user')
+      const userId = userStr ? JSON.parse(userStr).id : undefined
+      const backendChallenges = await apiService.getChallenges(userId)
+      // Normalize backend shape -> our Challenge interface if needed
+      const mapped = (Array.isArray(backendChallenges) ? backendChallenges : []).map((ch) => {
+        const record = (ch && typeof ch === 'object') ? (ch as Record<string, unknown>) : {}
+        const id = String(record.challengeID ?? record.id ?? record.ChallengeID ?? Math.random())
+        const title = String(record.name ?? record.title ?? 'Untitled Challenge')
+        const description = String(record.description ?? '')
+        const points = Number(record.points ?? 0)
+        const target = Number(record.target ?? 1)
+        const isCompleted = Boolean(record.isCompleted)
+        const progress = Number(record.progress ?? (isCompleted ? target : 0))
+        const status: Challenge['status'] = isCompleted ? 'completed' : 'active'
+        return { id, title, description, points, progress, target, status }
+      }) as Challenge[]
+      setChallenges(mapped)
+    } catch {
+      // Fallback to mock if backend not ready
+      console.warn('Backend challenges unavailable, using mock set.')
       setChallenges(MOCK_CHALLENGES)
-      
-    } catch (error) {
-      console.error('Failed to fetch challenges:', error)
     } finally {
       setLoading(false)
     }
@@ -126,7 +135,7 @@ export default function Challenges() {
       </div>
 
       <div className="demo-banner">
-        Demo Mode - Using mock data. Backend integration ready at line 85.
+        {loading ? 'Loading challenge data...' : 'Challenges loaded' + (challenges === MOCK_CHALLENGES ? ' (mock)' : ' (live)')}
       </div>
 
       <div className="filter-tabs">

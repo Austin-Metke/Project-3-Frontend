@@ -7,6 +7,8 @@ import SignUp from './pages/SignUp'
 import GitHubCallback from './pages/GitHubCallback'
 import { Challenges, Badges } from './pages/DaskboardTabsPages'
 import './App.css'
+import { BackendStatusProvider } from './contexts/BackendStatusContext'
+import BackendStatusBanner from './components/BackendStatusBanner'
 
 // Protected Route component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -21,6 +23,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
+    <BackendStatusProvider>
+      <BackendStatusBanner />
     <Routes>
       {/* Public Routes */}
       <Route path="/home" element={<Home />} />
@@ -49,6 +53,7 @@ function App() {
       {/* Catch all - redirect to dashboard */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
+    </BackendStatusProvider>
   )
 }
 
