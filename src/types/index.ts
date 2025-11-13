@@ -3,8 +3,8 @@ export interface User {
   id: string
   name: string
   email: string
-  totalPoints: number
-  createdAt: string
+  totalPoints?: number
+  createdAt?: string
 }
 
 export interface AuthResponse {
@@ -21,6 +21,12 @@ export interface SignUpData {
   name: string
   email: string
   password: string
+}
+
+export interface UpdateUserData {
+  name?: string
+  email?: string
+  password?: string
 }
 
 // Dashboard Stats Types
@@ -59,6 +65,38 @@ export interface ActivityType {
   icon?: string
 }
 
+export interface ActivityLog {
+  id: string
+  userId: string
+  activityTypeId: string
+  activityType?: ActivityType
+  points?: number
+  createdAt: string
+  description?: string
+}
+
+export interface CreateActivityLogData {
+  userId: string
+  activityTypeId: string
+  description?: string
+}
+
+export interface CreateActivityTypeData {
+  name: string
+  description: string
+  points: number
+  category: ActivityCategory
+  icon?: string
+}
+
+export interface UpdateActivityTypeData {
+  name?: string
+  description?: string
+  points?: number
+  category?: ActivityCategory
+  icon?: string
+}
+
 export type ActivityCategory = 
   | 'Transportation'
   | 'Recycling'
@@ -66,6 +104,25 @@ export type ActivityCategory =
   | 'Water'
   | 'Food'
   | 'Other'
+
+// Leaderboard Types
+export interface LeaderboardEntry {
+  userId: string
+  userName: string
+  totalPoints: number
+  rank: number
+  avatar?: string
+}
+
+// Challenge Types
+export interface Challenge {
+  challengeId: number
+  name: string
+  description: string
+  points: number
+  isCompleted: boolean
+  userId: number
+}
 
 // API Response wrapper
 export interface ApiResponse<T> {
