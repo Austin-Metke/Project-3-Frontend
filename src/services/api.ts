@@ -280,6 +280,16 @@ class ApiService {
     return response.data.data ?? response.data
   }
 
+  // Create a new activity type (dev/admin)
+  async createActivity(activityData: { name: string; points: number; co2gSaved?: string | number }) {
+    try {
+      const response = await this.api.post('/activities', activityData)
+      return response.data.data ?? response.data
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
   // Activity logs
   async logActivity(activityData: { activityTypeId: number; description?: string }) {
     const response = await this.api.post('/activity-logs', activityData)
@@ -310,18 +320,90 @@ class ApiService {
       { path: `/users/${userId}/challenges`, params: undefined },
     ]
 
+    const extractArray = (raw: unknown): unknown[] => {
+      // raw might be: array, { data: [...] }, { data: { items: [...] } }, { _embedded: { challenges: [...] } }, or { challenges: [...] }
+      if (!raw) return []
+      // If already an array
+      if (Array.isArray(raw)) return raw
+
+      if (typeof raw === 'object' && raw !== null) {
+        const rec = raw as Record<string, unknown>
+
+        // Common API wrappers
+        const candidatesKeys = [
+          'data',
+          'items',
+          'results',
+          'challenges',
+          'challengeList',
+          'rows',
+        ]
+
+        for (const k of candidatesKeys) {
+          const val = rec[k]
+          if (Array.isArray(val)) return val
+          if (val && typeof val === 'object') {
+            // nested wrapper like { data: { items: [...] } }
+            const nested = (val as Record<string, unknown>)
+            for (const kk of candidatesKeys) {
+              if (Array.isArray(nested[kk])) return nested[kk] as unknown[]
+            }
+          }
+        }
+
+        // HAL style: { _embedded: { challenges: [...] } }
+        if ('_embedded' in rec && rec._embedded && typeof rec._embedded === 'object') {
+          const emb = rec._embedded as Record<string, unknown>
+          for (const v of Object.values(emb)) {
+            if (Array.isArray(v)) return v
+          }
+        }
+
+        // If any property is an array, prefer it
+        for (const v of Object.values(rec)) {
+          if (Array.isArray(v)) return v
+        }
+      }
+
+      // Give up — return empty array
+      return []
+    }
+
     for (const c of candidates) {
       try {
         const resp = await this.api.get(c.path, { params: c.params })
-        if (resp && resp.data) return resp.data.data ?? resp.data
-      } catch {
+        const payload = resp?.data ?? resp
+        const arr = extractArray(payload)
+        if (import.meta.env.DEV) {
+          try {
+            // eslint-disable-next-line no-console
+            console.debug('[api.getChallenges] tried', c.path, 'status=', resp.status, 'found=', arr.length)
+          } catch (e) {}
+        }
+        if (arr.length) return arr
+      } catch (e) {
         // try next
       }
     }
 
-    // Final attempt: generic /challenges without params
-    const response = await this.api.get('/challenges')
-    return response.data.data ?? response.data
+    // Final attempt: generic /challenges without params and be tolerant about response shapes
+    try {
+      const response = await this.api.get('/challenges')
+      const payload = response?.data ?? response
+      const arr = extractArray(payload)
+      if (arr.length) return arr
+      // If nothing matched, but payload itself is an object/array, attempt to return meaningful parts
+      if (Array.isArray(payload)) return payload
+      if (payload && typeof payload === 'object') {
+        // return any nested array or the object itself wrapped
+        const nested = extractArray(payload)
+        if (nested.length) return nested
+        return [payload]
+      }
+      return []
+    } catch (error) {
+      this.handleError(error)
+    }
   }
 
   // Badges (placeholder; often derived from completed challenges)

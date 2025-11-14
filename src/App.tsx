@@ -5,6 +5,7 @@ import Login from './pages/Login'
 import SignUp from './pages/SignUp'
 import GitHubCallback from './pages/GitHubCallback'
 import { Challenges, Badges } from './pages/DaskboardTabsPages'
+import LogActivity from './pages/LogActivity'
 import './App.css'
 import { BackendStatusProvider } from './contexts/BackendStatusContext'
 import BackendStatusBanner from './components/BackendStatusBanner'
@@ -68,6 +69,7 @@ function App() {
       
   {/* Removed mock dashboard - app uses backend-driven /dashboard only */}
       <Route path="/challenges" element={<Challenges />} />
+  <Route path="/log-activity" element={<LogActivity />} />
       <Route path="/badges" element={<Badges />} />
       
       {/* Protected Routes */}
