@@ -3,13 +3,15 @@ import { useNavigate, Link } from 'react-router-dom'
 import apiService from '../services/api'
 import githubAuthService from '../services/githubAuth'
 import './Auth.css'
+import Notification from '../components/Notification'
 
 export default function Login() {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notification, setNotification] = useState<{ message: string; type?: 'success' | 'error' | 'info' } | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -17,26 +19,35 @@ export default function Login() {
     setLoading(true)
 
     try {
-      await apiService.login({ email, password })
-      navigate('/dashboard')
+      // Backend expects { name, passwordHash }
+      const result = await apiService.login({ name, passwordHash: password } as any)
+
+      // Backend may return either a wrapped AuthResponse or the user object directly.
+      const user = (result && (result.user ?? result))
+      if (user) {
+        setNotification({ message: 'Login successful', type: 'success' })
+        // apiService stores user when present; delay navigation so user sees toast
+        setTimeout(() => navigate('/dashboard'), 600)
+        return
+      }
+
+      // Otherwise check token fallback
+      const token = result?.token ?? localStorage.getItem('authToken')
+      if (token) {
+        setNotification({ message: 'Login successful', type: 'success' })
+        setTimeout(() => navigate('/dashboard'), 600)
+        return
+      }
+
+      setError('Login failed: unexpected server response. Check backend behavior.')
+      setNotification({ message: 'Login failed', type: 'error' })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed. Please try again.')
+      const msg = err instanceof Error ? err.message : 'Login failed. Please try again.'
+      setError(msg)
+      setNotification({ message: msg, type: 'error' })
     } finally {
       setLoading(false)
     }
-  }
-
-  // Demo mode - bypass API for testing
-  function handleDemoLogin() {
-    // Create a fake auth token for demo
-    localStorage.setItem('authToken', 'demo-token-12345')
-    localStorage.setItem('user', JSON.stringify({
-      id: 'demo-user',
-      name: 'Demo User',
-      email: 'demo@ecopoints.com',
-      totalPoints: 1250
-    }))
-    navigate('/dashboard-preview')
   }
 
   // GitHub OAuth login
@@ -58,13 +69,13 @@ export default function Login() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="name">Username</label>
             <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="your.email@example.com"
+              id="name"
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="your username"
               required
               disabled={loading}
             />
@@ -106,19 +117,16 @@ export default function Login() {
             Sign in with GitHub
           </button>
 
-          <button 
-            type="button"
-            className="btn-demo" 
-            onClick={handleDemoLogin}
-          >
-            Try Demo Mode
-          </button>
+          
 
           <div className="auth-footer">
             <p>
               Don't have an account? <Link to="/signup">Sign up</Link>
             </p>
           </div>
+          {notification && (
+            <Notification message={notification.message} type={notification.type as any} onClose={() => setNotification(null)} />
+          )}
         </form>
       </div>
     </div>

@@ -71,7 +71,8 @@ class ApiService {
       const dataUnknown: unknown = hasData(raw) ? (raw as { data: unknown }).data : raw
       const dataRecord = (dataUnknown && typeof dataUnknown === 'object') ? (dataUnknown as Record<string, unknown>) : {}
       const token = (dataRecord.token as string) || (dataRecord.accessToken as string) || (dataRecord.jwt as string) || (dataRecord.authToken as string)
-      const user = (dataRecord.user as unknown) || (dataRecord.profile as unknown) || (dataRecord.account as unknown)
+      // Accept either a wrapped { user: ... } or a top-level user object returned directly by some backends
+      const user = (dataRecord.user as unknown) || (dataRecord.profile as unknown) || (dataRecord.account as unknown) || dataUnknown
       
       // Store token and user info
       if (token) localStorage.setItem('authToken', token)
@@ -90,28 +91,62 @@ class ApiService {
   }
 
   async signUp(userData: SignUpData): Promise<AuthResponse> {
-    try {
-      const response = await this.api.post('/auth/register', userData)
-      const raw: unknown = response.data
+    // Try multiple candidate registration endpoints so frontend is tolerant
+    const candidates = [
+      { path: '/auth/register', params: undefined },
+      { path: '/auth', params: undefined },
+      { path: '/users', params: undefined },
+      { path: '/register', params: undefined },
+    ]
+
+    // Helper to normalize response -> AuthResponse
+    const normalize = (raw: unknown): AuthResponse => {
       function hasData(obj: unknown): obj is { data: unknown } {
         return typeof obj === 'object' && obj !== null && 'data' in obj
       }
       const dataUnknown: unknown = hasData(raw) ? (raw as { data: unknown }).data : raw
       const dataRecord = (dataUnknown && typeof dataUnknown === 'object') ? (dataUnknown as Record<string, unknown>) : {}
       const token = (dataRecord.token as string) || (dataRecord.accessToken as string) || (dataRecord.jwt as string) || (dataRecord.authToken as string)
-      const user = (dataRecord.user as unknown) || (dataRecord.profile as unknown) || (dataRecord.account as unknown)
-      
-      // Store token and user info
+      const user = (dataRecord.user as unknown) || (dataRecord.profile as unknown) || (dataRecord.account as unknown) || dataUnknown
+
       if (token) localStorage.setItem('authToken', token)
       if (user) localStorage.setItem('user', JSON.stringify(user))
 
-      // Construct a typed response for the caller
-      const result: AuthResponse = {
+      return {
         user: (user as unknown) as User,
         token: (token as unknown) as string,
       }
+    }
 
-      return result
+    // Try each candidate until one succeeds
+    for (const c of candidates) {
+      try {
+        const resp = await this.api.post(c.path, userData, { params: c.params })
+        if (import.meta.env.DEV) {
+          try {
+            // Log raw response for easier debugging in development
+            // eslint-disable-next-line no-console
+            console.debug('[api.signUp] POST', c.path, 'status=', resp.status, 'data=', resp.data)
+          } catch (e) {
+            /* ignore logging errors in rare environments */
+          }
+        }
+        if (resp && resp.data !== undefined) return normalize(resp.data)
+      } catch (err) {
+        // continue to next candidate
+      }
+    }
+
+    // Final attempt: post to /auth/register (keeps previous behavior)
+    try {
+      const response = await this.api.post('/auth/register', userData)
+      if (import.meta.env.DEV) {
+        try {
+          // eslint-disable-next-line no-console
+          console.debug('[api.signUp] POST /auth/register status=', response.status, 'data=', response.data)
+        } catch (e) {}
+      }
+      return normalize(response.data)
     } catch (error) {
       this.handleError(error)
     }
@@ -135,6 +170,65 @@ class ApiService {
       const response = await this.api.get<ApiResponse<UserStats>>('/user/stats')
       return response.data.data
     } catch (error) {
+      // If backend doesn't implement /user/stats, fall back to synthesizing from activity-logs
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        try {
+          const resp = await this.api.get('/activity-logs')
+          const logs: unknown = resp.data?.data ?? resp.data ?? []
+          const activities = Array.isArray(logs) ? (logs as any[]) : []
+
+          // Simple synthesis: totalPoints as sum of points, weekly/monthly based on createdAt date
+          const now = Date.now()
+          const oneDay = 24 * 60 * 60 * 1000
+          const last7 = now - 7 * oneDay
+          const last30 = now - 30 * oneDay
+
+          let totalPoints = 0
+          let weeklyPoints = 0
+          let monthlyPoints = 0
+          const recentActivities = [] as any[]
+
+          for (const a of activities) {
+            const pts = Number(a.points) || 0
+            totalPoints += pts
+            const t = a.createdAt ? new Date(a.createdAt).getTime() : now
+            if (t >= last7) weeklyPoints += pts
+            if (t >= last30) monthlyPoints += pts
+            if (recentActivities.length < 10) recentActivities.push(a)
+          }
+
+          // Weekly progress: aggregate by day for last 7 days
+          const weeklyProgress: { day: string; points: number }[] = []
+          for (let i = 6; i >= 0; i--) {
+            const dayStart = new Date(now - i * oneDay)
+            const dayLabel = dayStart.toLocaleDateString(undefined, { weekday: 'short' })
+            const dayStartTs = new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate()).getTime()
+            const dayEndTs = dayStartTs + oneDay
+            const dayPoints = activities.reduce((acc, a) => {
+              const t = a.createdAt ? new Date(a.createdAt).getTime() : now
+              if (t >= dayStartTs && t < dayEndTs) return acc + (Number(a.points) || 0)
+              return acc
+            }, 0)
+            weeklyProgress.push({ day: dayLabel, points: dayPoints })
+          }
+
+          const stats: UserStats = {
+            totalPoints,
+            currentStreak: 0,
+            weeklyPoints,
+            monthlyPoints,
+            rank: 0,
+            recentActivities,
+            weeklyProgress,
+          }
+
+          return stats
+        } catch (e) {
+          // If fallback fails, propagate original 404 handling
+          this.handleError(error)
+        }
+      }
+
       this.handleError(error)
     }
   }

@@ -29,7 +29,7 @@ export default function GitHubCallback() {
       if (token) {
         localStorage.setItem('authToken', token)
         // Optionally fetch user profile here when backend exposes /auth/me
-        navigate('/dashboard-preview')
+        navigate('/dashboard')
         return
       }
 
@@ -46,7 +46,7 @@ export default function GitHubCallback() {
         if (!mounted) return
         if (result && result.token) {
           // apiService.exchangeOAuthCode already stores token and user in localStorage
-          navigate('/dashboard-preview')
+          navigate('/dashboard')
           return
         }
         setError('Failed to obtain authentication token from server')

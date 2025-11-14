@@ -160,7 +160,7 @@ class GitHubAuthService {
         bio: profile.bio || null,
       }
 
-      // Store token and user locally (demo behavior)
+  // Store token and user locally
       localStorage.setItem('authToken', accessToken)
       localStorage.setItem('user', JSON.stringify({
         id: `github-${user.id}`,

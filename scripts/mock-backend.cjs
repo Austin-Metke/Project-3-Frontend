@@ -25,6 +25,27 @@ const badges = [
   { id: 'b2', title: 'Recycling Champion', description: '10 recycling activities', points: 150 },
 ]
 
+const userStats = {
+  totalPoints: 1520,
+  currentStreak: 5,
+  weeklyPoints: 120,
+  monthlyPoints: 420,
+  rank: 12,
+  recentActivities: [
+    { id: 'a1', userId: '2', activityType: { id: 't1', name: 'Walk', points: 10 }, points: 10, category: 'Transportation', createdAt: new Date().toISOString(), description: 'Walked to work' },
+    { id: 'a2', userId: '2', activityType: { id: 't2', name: 'Recycle', points: 5 }, points: 5, category: 'Recycling', createdAt: new Date().toISOString(), description: 'Recycled bottles' },
+  ],
+  weeklyProgress: [
+    { day: 'Mon', points: 20 },
+    { day: 'Tue', points: 10 },
+    { day: 'Wed', points: 30 },
+    { day: 'Thu', points: 25 },
+    { day: 'Fri', points: 15 },
+    { day: 'Sat', points: 10 },
+    { day: 'Sun', points: 10 },
+  ]
+}
+
 function sendJSON(res, status, obj) {
   const body = JSON.stringify(obj)
   res.writeHead(status, {
@@ -65,6 +86,10 @@ const server = http.createServer((req, res) => {
 
   if ((pathname === '/api/auth/me' || pathname === '/api/user/profile') && method === 'GET') {
     return sendJSON(res, 200, { success: true, data: sampleUser })
+  }
+
+  if (pathname === '/api/user/stats' && method === 'GET') {
+    return sendJSON(res, 200, { success: true, data: userStats })
   }
 
   if (pathname === '/api/auth/oauth/github' && method === 'POST') {

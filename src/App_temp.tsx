@@ -1,7 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
-import DashboardMock from './pages/DashboardMock'
 import Login from './pages/Login'
 import SignUp from './pages/SignUp'
 import GitHubCallback from './pages/GitHubCallback'
@@ -28,8 +27,7 @@ function App() {
       <Route path="/signup" element={<SignUp />} />a
       <Route path="/auth/github/callback" element={<GitHubCallback />} />
       
-      {/* Mock Dashboard - for UI testing without backend */}
-      <Route path="/dashboard-preview" element={<DashboardMock />} />
+  {/* Mock preview removed in favor of real /dashboard route */}
       <Route path="/challenges" element={<Challenges />} />
       <Route path="/badges" element={<Badges />} />
       

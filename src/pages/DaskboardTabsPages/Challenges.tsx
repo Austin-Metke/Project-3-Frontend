@@ -3,54 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import apiService from '../../services/api'
 import './Challenges.css'
 
-// Mock data for testing UI without backend
-const MOCK_CHALLENGES = [
-  {
-    id: '1',
-    title: '7-Day Streak',
-    description: 'Log eco-friendly activities for 7 consecutive days',
-    points: 100,
-    progress: 3,
-    target: 7,
-    status: 'active' as const
-  },
-  {
-    id: '2',
-    title: 'Recycling Champion',
-    description: 'Complete 10 recycling activities this month',
-    points: 150,
-    progress: 6,
-    target: 10,
-    status: 'active' as const
-  },
-  {
-    id: '3',
-    title: 'Green Commuter',
-    description: 'Use eco-friendly transportation 15 times',
-    points: 200,
-    progress: 15,
-    target: 15,
-    status: 'completed' as const
-  },
-  {
-    id: '4',
-    title: 'Energy Saver',
-    description: 'Complete 5 energy-saving activities',
-    points: 75,
-    progress: 2,
-    target: 5,
-    status: 'active' as const
-  },
-  {
-    id: '5',
-    title: 'Weekend Warrior',
-    description: 'Complete any 3 activities this weekend',
-    points: 50,
-    progress: 0,
-    target: 3,
-    status: 'active' as const
-  }
-]
+// Challenges now load from backend; mock data removed.
 
 interface Challenge {
   id: string
@@ -93,10 +46,10 @@ export default function Challenges() {
         return { id, title, description, points, progress, target, status }
       }) as Challenge[]
       setChallenges(mapped)
-    } catch {
-      // Fallback to mock if backend not ready
-      console.warn('Backend challenges unavailable, using mock set.')
-      setChallenges(MOCK_CHALLENGES)
+    } catch (err) {
+      // Do not fall back to mock — surface error so developer knows backend is missing
+      console.error('Backend challenges unavailable:', err)
+      setChallenges([])
     } finally {
       setLoading(false)
     }
@@ -125,7 +78,7 @@ export default function Challenges() {
           <p className="subtitle">Complete challenges to earn bonus points</p>
         </div>
         <div className="header-actions">
-          <button className="btn-back" onClick={() => navigate('/dashboard-preview')}>
+          <button className="btn-back" onClick={() => navigate('/dashboard')}>
             Back to Dashboard
           </button>
           <button className="btn-logout" onClick={handleLogout}>
@@ -134,9 +87,7 @@ export default function Challenges() {
         </div>
       </div>
 
-      <div className="demo-banner">
-        {loading ? 'Loading challenge data...' : 'Challenges loaded' + (challenges === MOCK_CHALLENGES ? ' (mock)' : ' (live)')}
-      </div>
+      {/* Info: challenges are loaded from backend when available */}
 
       <div className="filter-tabs">
         <button 

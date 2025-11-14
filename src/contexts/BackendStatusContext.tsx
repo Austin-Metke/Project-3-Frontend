@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import apiService from '../services/api'
 
 type Status = 'unknown' | 'online' | 'offline'
 
@@ -12,10 +11,14 @@ export function BackendStatusProvider({ children }: { children: React.ReactNode 
     let mounted = true
     ;(async () => {
       try {
-        // Try a lightweight call that most backends provide
-        await apiService.getUserProfile()
+        // Try a lightweight unauthenticated endpoint to detect backend availability.
+        // Prefer GET /auth (user list) which most backends expose for discovery.
+        const base = (import.meta.env.VITE_API_BASE_URL as string) || '/api'
+        const url = `${base.replace(/\/$/, '')}/auth`
+        const resp = await fetch(url, { method: 'GET' })
         if (!mounted) return
-        setStatus('online')
+        if (resp.ok) setStatus('online')
+        else setStatus('offline')
       } catch {
         if (!mounted) return
         setStatus('offline')

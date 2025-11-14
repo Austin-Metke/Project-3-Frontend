@@ -1,56 +1,36 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import apiService from '../../services/api'
 import './Badges.css'
-
-// Mock data for testing UI without backend
-const MOCK_BADGES = [
-  {
-    id: '1',
-    title: 'Green Commuter',
-    description: 'Completed the Green Commuter challenge',
-    earnedDate: new Date(Date.now() - 2 * 24 * 3600000).toISOString()
-  },
-  {
-    id: '2',
-    title: 'Early Adopter',
-    description: 'One of the first users to join EcoPoints',
-    earnedDate: new Date(Date.now() - 10 * 24 * 3600000).toISOString()
-  }
-]
 
 interface Badge {
   id: string
   title: string
   description: string
-  earnedDate: string
+  earnedDate?: string
 }
 
 export default function Badges() {
   const navigate = useNavigate()
   const [badges, setBadges] = useState<Badge[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // ⚠️ BACKEND INTEGRATION POINT
-    // Replace this mock data fetch with actual API call
     fetchBadges()
   }, [])
 
   async function fetchBadges() {
     try {
       setLoading(true)
-      
-      // ⚠️ TODO: Replace with actual API call when backend is ready
-      // Example:
-      // const response = await apiService.getBadges()
-      // setBadges(response.data)
-      
-      // Simulating API delay for now
-      await new Promise(resolve => setTimeout(resolve, 500))
-      setBadges(MOCK_BADGES)
-      
-    } catch (error) {
-      console.error('Failed to fetch badges:', error)
+      setError(null)
+      const resp = await apiService.getUserBadges()
+      // Normalize response shape
+      const list = Array.isArray(resp) ? resp : (resp?.data ?? [])
+      setBadges(list.map((b: any) => ({ id: String(b.id ?? b.badgeId ?? Math.random()), title: b.title ?? b.name ?? 'Badge', description: b.description ?? '', earnedDate: b.earnedDate ?? b.createdAt })))
+    } catch (err) {
+      console.error('Failed to fetch badges:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load badges')
     } finally {
       setLoading(false)
     }
@@ -70,7 +50,7 @@ export default function Badges() {
           <p className="subtitle">Your earned achievements</p>
         </div>
         <div className="header-actions">
-          <button className="btn-back" onClick={() => navigate('/dashboard-preview')}>
+          <button className="btn-back" onClick={() => navigate('/dashboard')}>
             Back to Dashboard
           </button>
           <button className="btn-logout" onClick={handleLogout}>
@@ -79,9 +59,9 @@ export default function Badges() {
         </div>
       </div>
 
-      <div className="demo-banner">
-        Demo Mode - Using mock data. Backend integration ready at line 40.
-      </div>
+      {error && (
+        <div className="error-banner">⚠️ {error}</div>
+      )}
 
       {loading ? (
         <div className="loading-state">
