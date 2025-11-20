@@ -34,14 +34,24 @@ export default function Challenges() {
       // Prefer backend challenges if available
       const userStr = localStorage.getItem('user')
       const userId = userStr ? JSON.parse(userStr).id : undefined
+      if (import.meta.env.DEV) {
+        console.log('[Challenges] Fetching challenges for userId:', userId)
+      }
       // Try user-specific challenges first (if logged in). apiService.getChallenges is tolerant and will
       // try multiple endpoints including /challenges/user/{id} and /challenges.
       let backendChallenges = await apiService.getChallenges(userId)
+
+      if (import.meta.env.DEV) {
+        console.log('[Challenges] User-specific challenges result:', backendChallenges)
+      }
 
       // If user-specific call returned nothing and we have a user, try the global /challenges endpoint
       // (some backends may only expose global challenges)
       if ((!backendChallenges || (Array.isArray(backendChallenges) && backendChallenges.length === 0)) && userId) {
         backendChallenges = await apiService.getChallenges()
+        if (import.meta.env.DEV) {
+          console.log('[Challenges] Global challenges result:', backendChallenges)
+        }
       }
   // Capture raw payload for DEV debugging
   setRawPayload(backendChallenges)

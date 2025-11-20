@@ -363,7 +363,8 @@ class ApiService {
   async getAllActivityLogs(): Promise<ActivityLog[]> {
     try {
       const response = await this.api.get<ApiResponse<ActivityLog[]>>('/activity-logs')
-      return response.data.data
+      // Backend may return array directly or wrapped in { data: [...] }
+      return response.data.data || response.data as any
     } catch (error) {
       this.handleError(error)
     }
@@ -399,7 +400,8 @@ class ApiService {
   async createActivityLog(logData: CreateActivityLogData): Promise<ActivityLog> {
     try {
       const response = await this.api.post<ApiResponse<ActivityLog>>('/activity-logs', logData)
-      return response.data.data
+      // Backend may return object directly or wrapped in { data: {...} }
+      return response.data.data || response.data as any
     } catch (error) {
       this.handleError(error)
     }
@@ -417,7 +419,8 @@ class ApiService {
   async getAllActivityTypes(): Promise<ActivityType[]> {
     try {
       const response = await this.api.get<ApiResponse<ActivityType[]>>('/activities')
-      return response.data.data
+      // Backend may return array directly or wrapped in { data: [...] }
+      return response.data.data || response.data as any
     } catch (error) {
       this.handleError(error)
     }
@@ -435,7 +438,8 @@ class ApiService {
   async createActivityType(activityData: CreateActivityTypeData): Promise<ActivityType> {
     try {
       const response = await this.api.post<ApiResponse<ActivityType>>('/activities', activityData)
-      return response.data.data
+      // Backend may return object directly or wrapped in { data: {...} }
+      return response.data.data || response.data as any
     } catch (error) {
       this.handleError(error)
     }
@@ -462,7 +466,8 @@ class ApiService {
   async getLeaderboard(): Promise<LeaderboardEntry[]> {
     try {
       const response = await this.api.get<ApiResponse<LeaderboardEntry[]>>('/leaderboard')
-      return response.data.data
+      // Backend may return array directly or wrapped in { data: [...] }
+      return response.data.data || response.data as any
     } catch (error) {
       this.handleError(error)
     }
@@ -534,7 +539,8 @@ class ApiService {
       if (userId) {
         try {
           const response = await this.api.get<ApiResponse<Challenge[]>>(`/challenges/user/${userId}`)
-          return response.data.data || response.data as any || []
+          const data = response.data.data || response.data
+          return Array.isArray(data) ? data : []
         } catch (err) {
           // Fall through to global endpoint
         }
@@ -543,7 +549,8 @@ class ApiService {
       // Try global challenges endpoint
       try {
         const response = await this.api.get<ApiResponse<Challenge[]>>('/challenges')
-        return response.data.data || response.data as any || []
+        const data = response.data.data || response.data
+        return Array.isArray(data) ? data : []
       } catch (err) {
         // Backend may not have challenges endpoint yet
         if (axios.isAxiosError(err) && err.response?.status === 404) {

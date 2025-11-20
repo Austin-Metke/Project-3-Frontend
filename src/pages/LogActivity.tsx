@@ -33,9 +33,15 @@ export default function LogActivity() {
     setError(null)
     try {
       const resp = await apiService.getActivityTypes()
+      if (import.meta.env.DEV) {
+        console.log('[LogActivity] Fetched activities:', resp)
+      }
       // tolerate wrappers - ensure array
       const arr = Array.isArray(resp) ? resp : []
       setActivities(arr as ActivityType[])
+      if (import.meta.env.DEV) {
+        console.log('[LogActivity] Set activities state:', arr.length, 'items')
+      }
     } catch (err) {
       console.error('Failed to load activities', err)
       setError(err instanceof Error ? err.message : 'Failed to load activities')
