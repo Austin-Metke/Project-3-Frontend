@@ -1,32 +1,63 @@
-// User and Authentication Types
-export interface User {
-  id: string
-  name: string
-  email: string
-  totalPoints?: number
-  createdAt?: string
+// Shared application types used across the frontend
+
+// Generic API wrapper used by some backend responses
+export interface ApiResponse<T = any> {
+  data: T
+  message?: string
+  success?: boolean
 }
 
-export interface AuthResponse {
-  user: User
-  token: string
+export interface ApiError {
+  message: string
+  statusCode?: number
+  errors?: Record<string, string[]>
+}
+
+// Activity category union
+export type ActivityCategory = 
+  | 'Transportation'
+  | 'Recycling'
+  | 'Energy'
+  | 'Water'
+  | 'Food'
+  | 'Other'
+
+// User and Authentication Types
+export interface User {
+  id: number | string
+  name?: string
+  email?: string
+  username?: string
+  googleID?: string | null
+  createdAt?: string
+  updatedAt?: string
+  totalPoints?: number
 }
 
 export interface LoginCredentials {
-  email: string
-  password: string
+  // backend in this project expects { name, passwordHash }
+  name?: string
+  email?: string
+  password?: string
+  passwordHash?: string
 }
 
 export interface SignUpData {
-  name: string
-  email: string
-  password: string
+  name?: string
+  email?: string
+  password?: string
+  passwordHash?: string
 }
 
 export interface UpdateUserData {
   name?: string
   email?: string
   password?: string
+}
+
+export interface AuthResponse {
+  user?: User
+  token?: string
 }
 
 // Dashboard Stats Types
@@ -37,7 +68,12 @@ export interface UserStats {
   monthlyPoints: number
   rank: number
   recentActivities: Activity[]
-  weeklyProgress: WeeklyProgress[]
+  weeklyProgress: WeeklyProgressPoint[]
+}
+
+export interface WeeklyProgressPoint {
+  day: string
+  points: number
 }
 
 export interface WeeklyProgress {
@@ -47,17 +83,18 @@ export interface WeeklyProgress {
 
 // Activity Types
 export interface Activity {
-  id: string
-  userId: string
-  activityType: ActivityType
-  points: number
-  category: ActivityCategory
-  createdAt: string
+  id?: number | string
+  userId?: number | string
+  activityType?: ActivityType
+  activityTypeId?: number | string
+  points?: number
+  category?: ActivityCategory | string
+  createdAt?: string
   description?: string
 }
 
 export interface ActivityType {
-  id: string
+  id: string | number
   name: string
   description: string
   points: number
@@ -66,9 +103,9 @@ export interface ActivityType {
 }
 
 export interface ActivityLog {
-  id: string
-  userId: string
-  activityTypeId: string
+  id: string | number
+  userId: string | number
+  activityTypeId: string | number
   activityType?: ActivityType
   points?: number
   createdAt: string
@@ -76,8 +113,8 @@ export interface ActivityLog {
 }
 
 export interface CreateActivityLogData {
-  userId: string
-  activityTypeId: string
+  userId: string | number
+  activityTypeId: string | number
   description?: string
 }
 
@@ -97,42 +134,27 @@ export interface UpdateActivityTypeData {
   icon?: string
 }
 
-export type ActivityCategory = 
-  | 'Transportation'
-  | 'Recycling'
-  | 'Energy'
-  | 'Water'
-  | 'Food'
-  | 'Other'
-
 // Leaderboard Types
 export interface LeaderboardEntry {
-  userId: string
-  userName: string
+  userId: number | string
+  userName?: string
+  name?: string
   totalPoints: number
-  rank: number
+  totalCo2gSaved?: number | string
+  rank?: number
   avatar?: string
 }
 
 // Challenge Types
 export interface Challenge {
-  challengeId: number
-  name: string
-  description: string
-  points: number
-  isCompleted: boolean
-  userId: number
+  id?: number | string
+  challengeId?: number | string
+  name?: string
+  title?: string
+  description?: string
+  points?: number
+  isCompleted?: boolean
+  completed?: boolean
+  userId?: number | string
 }
 
-// API Response wrapper
-export interface ApiResponse<T> {
-  success: boolean
-  data: T
-  message?: string
-}
-
-export interface ApiError {
-  success: false
-  message: string
-  errors?: Record<string, string[]>
-}

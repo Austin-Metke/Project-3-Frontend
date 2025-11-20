@@ -30,6 +30,8 @@ class ApiService {
       headers: {
         'Content-Type': 'application/json',
       },
+      // Allow sending/receiving cookies for session-based auth
+      withCredentials: true,
     })
 
     // Request interceptor to add auth token
@@ -62,7 +64,7 @@ class ApiService {
   // Helper method to handle errors
   private handleError(error: unknown): never {
     if (axios.isAxiosError(error)) {
-      const apiError = error.response?.data as ApiError
+      const apiError = error.response?.data as ApiError | undefined
       throw new Error(apiError?.message || 'An unexpected error occurred')
     }
     throw error
@@ -71,29 +73,129 @@ class ApiService {
   // Authentication endpoints
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      const response = await this.api.post<ApiResponse<AuthResponse>>('/auth/login', credentials)
-      const { data } = response.data
+      // Some backends expect `password` while others expect `passwordHash`.
+      // Send both when available to maximize compatibility.
+      const payload = {
+        ...credentials,
+        password: credentials.password ?? credentials.passwordHash,
+        passwordHash: credentials.passwordHash ?? credentials.password,
+      }
+      const response = await this.api.post('/auth/login', payload)
+      if (import.meta.env.DEV) {
+        try {
+          // eslint-disable-next-line no-console
+          console.debug('[api.login] POST /auth/login status=', response.status, 'data=', response.data)
+        } catch (e) {}
+      }
+      const raw: unknown = response.data
+      function hasData(obj: unknown): obj is { data: unknown } {
+        return typeof obj === 'object' && obj !== null && 'data' in obj
+      }
+      const dataUnknown: unknown = hasData(raw) ? (raw as { data: unknown }).data : raw
+      const dataRecord = (dataUnknown && typeof dataUnknown === 'object') ? (dataUnknown as Record<string, unknown>) : {}
+      const token = (dataRecord.token as string) || (dataRecord.accessToken as string) || (dataRecord.jwt as string) || (dataRecord.authToken as string)
+      // Accept either a wrapped { user: ... } or a top-level user object returned directly by some backends
+      const user = (dataRecord.user as unknown) || (dataRecord.profile as unknown) || (dataRecord.account as unknown) || dataUnknown
       
       // Store token and user info
-      localStorage.setItem('authToken', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
-      
-      return data
+      if (token) localStorage.setItem('authToken', token)
+      if (user) localStorage.setItem('user', JSON.stringify(user))
+
+      // Some backends use cookie-based sessions and return no token/user in the login response.
+      // In that case, attempt to fetch the user profile (requires withCredentials) and persist it.
+      if (!token && !user) {
+        try {
+          const profile = await this.getUserProfile()
+          if (profile) {
+            localStorage.setItem('user', JSON.stringify(profile))
+            return { user: profile, token: '' }
+          }
+        } catch (e) {
+          // ignore — we'll return whatever we have
+        }
+      }
+
+      // Construct a typed response for the caller
+      const result: AuthResponse = {
+        user: (user as unknown) as User,
+        token: (token as unknown) as string,
+      }
+
+      return result
     } catch (error) {
+      if (import.meta.env.DEV) {
+        try {
+          // eslint-disable-next-line no-console
+          console.debug('[api.login] error=', (error as any)?.response?.status, (error as any)?.response?.data)
+        } catch (e) {}
+      }
       this.handleError(error)
     }
   }
 
   async signUp(userData: SignUpData): Promise<AuthResponse> {
+    // Try multiple candidate registration endpoints so frontend is tolerant
+    const candidates = [
+      { path: '/auth/register', params: undefined },
+      { path: '/auth', params: undefined },
+      { path: '/users', params: undefined },
+      { path: '/register', params: undefined },
+    ]
+
+    // Helper to normalize response -> AuthResponse
+    const normalize = (raw: unknown): AuthResponse => {
+      function hasData(obj: unknown): obj is { data: unknown } {
+        return typeof obj === 'object' && obj !== null && 'data' in obj
+      }
+      const dataUnknown: unknown = hasData(raw) ? (raw as { data: unknown }).data : raw
+      const dataRecord = (dataUnknown && typeof dataUnknown === 'object') ? (dataUnknown as Record<string, unknown>) : {}
+      const token = (dataRecord.token as string) || (dataRecord.accessToken as string) || (dataRecord.jwt as string) || (dataRecord.authToken as string)
+      const user = (dataRecord.user as unknown) || (dataRecord.profile as unknown) || (dataRecord.account as unknown) || dataUnknown
+
+      if (token) localStorage.setItem('authToken', token)
+      if (user) localStorage.setItem('user', JSON.stringify(user))
+
+      return {
+        user: (user as unknown) as User,
+        token: (token as unknown) as string,
+      }
+    }
+
+    // Try each candidate until one succeeds
+    for (const c of candidates) {
+      try {
+        // normalize password field names for compatibility
+        const payload = {
+          ...userData,
+          password: userData.password ?? userData.passwordHash,
+          passwordHash: userData.passwordHash ?? userData.password,
+        }
+        const resp = await this.api.post(c.path, payload, { params: c.params })
+        if (import.meta.env.DEV) {
+          try {
+            // Log raw response for easier debugging in development
+            // eslint-disable-next-line no-console
+            console.debug('[api.signUp] POST', c.path, 'status=', resp.status, 'data=', resp.data)
+          } catch (e) {
+            /* ignore logging errors in rare environments */
+          }
+        }
+        if (resp && resp.data !== undefined) return normalize(resp.data)
+      } catch (err) {
+        // continue to next candidate
+      }
+    }
+
+    // Final attempt: post to /auth/register (keeps previous behavior)
     try {
-      const response = await this.api.post<ApiResponse<AuthResponse>>('/auth/register', userData)
-      const { data } = response.data
-      
-      // Store token and user info
-      localStorage.setItem('authToken', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
-      
-      return data
+      const response = await this.api.post('/auth/register', userData)
+      if (import.meta.env.DEV) {
+        try {
+          // eslint-disable-next-line no-console
+          console.debug('[api.signUp] POST /auth/register status=', response.status, 'data=', response.data)
+        } catch (e) {}
+      }
+      return normalize(response.data)
     } catch (error) {
       this.handleError(error)
     }
@@ -153,14 +255,105 @@ class ApiService {
       const response = await this.api.get<ApiResponse<UserStats>>('/user/stats')
       return response.data.data
     } catch (error) {
+      // If backend doesn't implement /user/stats, fall back to synthesizing from activity-logs
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        try {
+          const resp = await this.api.get('/activity-logs')
+          const logs: unknown = resp.data?.data ?? resp.data ?? []
+          const activities = Array.isArray(logs) ? (logs as any[]) : []
+
+          // Simple synthesis: totalPoints as sum of points, weekly/monthly based on createdAt date
+          const now = Date.now()
+          const oneDay = 24 * 60 * 60 * 1000
+          const last7 = now - 7 * oneDay
+          const last30 = now - 30 * oneDay
+
+          let totalPoints = 0
+          let weeklyPoints = 0
+          let monthlyPoints = 0
+          const recentActivities = [] as any[]
+
+          for (const a of activities) {
+            const pts = Number(a.points) || 0
+            totalPoints += pts
+            const t = a.createdAt ? new Date(a.createdAt).getTime() : now
+            if (t >= last7) weeklyPoints += pts
+            if (t >= last30) monthlyPoints += pts
+            if (recentActivities.length < 10) recentActivities.push(a)
+          }
+
+          // Weekly progress: aggregate by day for last 7 days
+          const weeklyProgress: { day: string; points: number }[] = []
+          for (let i = 6; i >= 0; i--) {
+            const dayStart = new Date(now - i * oneDay)
+            const dayLabel = dayStart.toLocaleDateString(undefined, { weekday: 'short' })
+            const dayStartTs = new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate()).getTime()
+            const dayEndTs = dayStartTs + oneDay
+            const dayPoints = activities.reduce((acc, a) => {
+              const t = a.createdAt ? new Date(a.createdAt).getTime() : now
+              if (t >= dayStartTs && t < dayEndTs) return acc + (Number(a.points) || 0)
+              return acc
+            }, 0)
+            weeklyProgress.push({ day: dayLabel, points: dayPoints })
+          }
+
+          const stats: UserStats = {
+            totalPoints,
+            currentStreak: 0,
+            weeklyPoints,
+            monthlyPoints,
+            rank: 0,
+            recentActivities,
+            weeklyProgress,
+          }
+
+          return stats
+        } catch (e) {
+          // If fallback fails, propagate original 404 handling
+          this.handleError(error)
+        }
+      }
+
       this.handleError(error)
     }
   }
 
   async getUserProfile(): Promise<User> {
     try {
-      const response = await this.api.get<ApiResponse<User>>('/user/profile')
-      return response.data.data
+      // Try common profile endpoints used by different backends
+      const userStr = localStorage.getItem('user')
+      const id = userStr ? JSON.parse(userStr).id : undefined
+
+      // Try /user/profile first (existing frontend expectation)
+      try {
+        const resp = await this.api.get<ApiResponse<User>>('/user/profile')
+        return resp.data.data
+      } catch {
+        // ignore and try fallbacks
+      }
+
+      // Try /auth/me (common) then /auth/{id}
+      try {
+        const resp = await this.api.get<ApiResponse<User>>('/auth/me')
+        return resp.data.data
+      } catch {
+        // ignore
+      }
+
+      if (id) {
+        try {
+          const resp = await this.api.get<ApiResponse<User>>(`/auth/${id}`)
+          // backend may return user directly or wrapped
+          return (resp.data && (resp.data.data ?? resp.data)) as User
+        } catch {
+          // ignore
+        }
+      }
+
+      // As a last resort, use stored user from localStorage
+      if (userStr) return JSON.parse(userStr)
+
+      throw new Error('Unable to fetch user profile')
     } catch (error) {
       this.handleError(error)
     }
@@ -170,7 +363,8 @@ class ApiService {
   async getAllActivityLogs(): Promise<ActivityLog[]> {
     try {
       const response = await this.api.get<ApiResponse<ActivityLog[]>>('/activity-logs')
-      return response.data.data
+      // Backend may return array directly or wrapped in { data: [...] }
+      return response.data.data || response.data as any
     } catch (error) {
       this.handleError(error)
     }
@@ -206,7 +400,8 @@ class ApiService {
   async createActivityLog(logData: CreateActivityLogData): Promise<ActivityLog> {
     try {
       const response = await this.api.post<ApiResponse<ActivityLog>>('/activity-logs', logData)
-      return response.data.data
+      // Backend may return object directly or wrapped in { data: {...} }
+      return response.data.data || response.data as any
     } catch (error) {
       this.handleError(error)
     }
@@ -224,7 +419,8 @@ class ApiService {
   async getAllActivityTypes(): Promise<ActivityType[]> {
     try {
       const response = await this.api.get<ApiResponse<ActivityType[]>>('/activities')
-      return response.data.data
+      // Backend may return array directly or wrapped in { data: [...] }
+      return response.data.data || response.data as any
     } catch (error) {
       this.handleError(error)
     }
@@ -242,7 +438,8 @@ class ApiService {
   async createActivityType(activityData: CreateActivityTypeData): Promise<ActivityType> {
     try {
       const response = await this.api.post<ApiResponse<ActivityType>>('/activities', activityData)
-      return response.data.data
+      // Backend may return object directly or wrapped in { data: {...} }
+      return response.data.data || response.data as any
     } catch (error) {
       this.handleError(error)
     }
@@ -269,7 +466,8 @@ class ApiService {
   async getLeaderboard(): Promise<LeaderboardEntry[]> {
     try {
       const response = await this.api.get<ApiResponse<LeaderboardEntry[]>>('/leaderboard')
-      return response.data.data
+      // Backend may return array directly or wrapped in { data: [...] }
+      return response.data.data || response.data as any
     } catch (error) {
       this.handleError(error)
     }
@@ -287,19 +485,19 @@ class ApiService {
 
   // Legacy/deprecated methods - kept for backward compatibility
   /** @deprecated Use getAllActivityTypes() instead */
-  async getActivityTypes() {
+  async getActivityTypes(): Promise<ActivityType[]> {
     return this.getAllActivityTypes()
   }
 
   /** @deprecated Use createActivityLog() instead */
-  async logActivity(activityData: { activityTypeId: string; description?: string }) {
+  async logActivity(activityData: { activityTypeId: string | number; description?: string }) {
     const userId = this.getCurrentUserId()
     if (!userId) {
       throw new Error('User not authenticated')
     }
     return this.createActivityLog({
       userId,
-      activityTypeId: activityData.activityTypeId,
+      activityTypeId: String(activityData.activityTypeId),
       description: activityData.description
     })
   }
@@ -332,6 +530,38 @@ class ApiService {
     // Placeholder - return empty array until badges endpoint is implemented
     console.warn('Badges endpoint not yet implemented')
     return []
+  }
+
+  // Challenges endpoint (tries multiple patterns)
+  async getChallenges(userId?: string | number): Promise<Challenge[]> {
+    try {
+      // Try user-specific challenges first if userId provided
+      if (userId) {
+        try {
+          const response = await this.api.get<ApiResponse<Challenge[]>>(`/challenges/user/${userId}`)
+          const data = response.data.data || response.data
+          return Array.isArray(data) ? data : []
+        } catch (err) {
+          // Fall through to global endpoint
+        }
+      }
+
+      // Try global challenges endpoint
+      try {
+        const response = await this.api.get<ApiResponse<Challenge[]>>('/challenges')
+        const data = response.data.data || response.data
+        return Array.isArray(data) ? data : []
+      } catch (err) {
+        // Backend may not have challenges endpoint yet
+        if (axios.isAxiosError(err) && err.response?.status === 404) {
+          console.warn('Challenges endpoint not implemented in backend')
+          return []
+        }
+        throw err
+      }
+    } catch (error) {
+      this.handleError(error)
+    }
   }
 
   // Helper method to get current user ID

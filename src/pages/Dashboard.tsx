@@ -4,14 +4,18 @@ import apiService from '../services/api'
 import type { UserStats } from '../types'
 import './Dashboard.css'
 
+import type { User } from '../types'
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const [stats, setStats] = useState<UserStats | null>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     loadDashboardData()
+    loadUser()
   }, [])
 
   const loadDashboardData = async () => {
@@ -25,6 +29,17 @@ export default function Dashboard() {
       console.error('Dashboard error:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadUser = async () => {
+    try {
+      const u = await apiService.getUserProfile()
+      setUser(u)
+    } catch (err) {
+      // ignore; user may be in localStorage
+      const userStr = localStorage.getItem('user')
+      if (userStr) setUser(JSON.parse(userStr))
     }
   }
 
@@ -84,6 +99,7 @@ export default function Dashboard() {
         <div>
           <h1>🌱 EcoPoints Dashboard</h1>
           <p className="subtitle">Keep making a difference, one action at a time!</p>
+          {user && <p className="welcome">Signed in as <strong>{user.name}</strong></p>}
         </div>
         <button onClick={handleLogout} className="btn-logout">
           Logout
@@ -155,12 +171,12 @@ export default function Dashboard() {
           <div className="activities-list">
             {stats.recentActivities.map((activity) => (
               <div key={activity.id} className="activity-item">
-                <div className="activity-icon">{getCategoryIcon(activity.category)}</div>
+                <div className="activity-icon">{getCategoryIcon(String(activity.category ?? 'Other'))}</div>
                 <div className="activity-content">
-                  <h4>{activity.activityType.name}</h4>
-                  <p className="activity-category">{activity.category}</p>
+                  <h4>{activity.activityType?.name ?? 'Activity'}</h4>
+                  <p className="activity-category">{activity.category ?? 'Other'}</p>
                 </div>
-                <div className="activity-points">+{activity.points} pts</div>
+                <div className="activity-points">+{Number(activity.points ?? 0)} pts</div>
               </div>
             ))}
           </div>

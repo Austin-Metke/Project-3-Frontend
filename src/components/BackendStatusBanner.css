@@ -1,0 +1,3 @@
+.backend-banner{position:fixed;left:0;right:0;top:0;padding:0.5rem 1rem;text-align:center;font-weight:600;z-index:999}
+.backend-banner.online{background:#0f5132;color:#d1fae5}
+.backend-banner.offline{background:#6b2a2a;color:#ffe4e6}

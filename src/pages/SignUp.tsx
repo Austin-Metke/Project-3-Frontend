@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import apiService from '../services/api'
 import './Auth.css'
+import Notification from '../components/Notification'
 
 export default function SignUp() {
   const navigate = useNavigate()
@@ -11,6 +12,7 @@ export default function SignUp() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [notification, setNotification] = useState<{ message: string; type?: 'success' | 'error' | 'info' } | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -33,26 +35,43 @@ export default function SignUp() {
     setLoading(true)
 
     try {
-      await apiService.signUp({ name, email, password })
-      navigate('/dashboard')
+      // Backend expects password in 'passwordHash'
+      const result = await apiService.signUp({ name, email, passwordHash: password } as any)
+
+      // If backend returns a user object without a token, attempt to log in automatically
+      const token = result?.token ?? localStorage.getItem('authToken')
+      if (token) {
+        setNotification({ message: 'Account created', type: 'success' })
+        setTimeout(() => navigate('/dashboard'), 600)
+        return
+      }
+
+      if (result?.user) {
+        // Try to login using the same credentials to establish a session or retrieve token
+        try {
+          const loginRes = await apiService.login({ name, passwordHash: password } as any)
+          const loginToken = loginRes?.token ?? localStorage.getItem('authToken')
+          if (loginToken || loginRes?.user) {
+            setNotification({ message: 'Account created and signed in', type: 'success' })
+            setTimeout(() => navigate('/dashboard'), 600)
+            return
+          }
+        } catch (loginErr) {
+          // If auto-login fails, still treat signup as success but inform user to sign in
+          setNotification({ message: 'Account created — please sign in', type: 'success' })
+          setTimeout(() => navigate('/login'), 800)
+          return
+        }
+      }
+
+      setError('Sign up succeeded but server did not return a user or token. Please check backend behavior.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign up failed. Please try again.')
+      const msg = err instanceof Error ? err.message : 'Sign up failed. Please try again.'
+      setError(msg)
+      setNotification({ message: msg, type: 'error' })
     } finally {
       setLoading(false)
     }
-  }
-
-  // Demo mode - bypass API for testing
-  function handleDemoSignUp() {
-    // Create a fake auth token for demo
-    localStorage.setItem('authToken', 'demo-token-12345')
-    localStorage.setItem('user', JSON.stringify({
-      id: 'demo-user',
-      name: name || 'Demo User',
-      email: email || 'demo@ecopoints.com',
-      totalPoints: 0
-    }))
-    navigate('/dashboard-preview')
   }
 
   return (
@@ -61,9 +80,7 @@ export default function SignUp() {
         <h1>🌱 Join EcoPoints</h1>
         <p className="auth-subtitle">Create your account and start making an impact</p>
 
-        <div className="info-banner">
-          ℹ️ Backend not connected yet? Use <strong>Demo Mode</strong> to explore the UI!
-        </div>
+        
 
         {error && (
           <div className="error-banner">
@@ -138,19 +155,16 @@ export default function SignUp() {
             <span>OR</span>
           </div>
 
-          <button 
-            type="button"
-            className="btn-demo" 
-            onClick={handleDemoSignUp}
-          >
-            🎨 Try Demo Mode (No Backend Required)
-          </button>
+          
 
           <div className="auth-footer">
             <p>
               Already have an account? <Link to="/login">Log in</Link>
             </p>
           </div>
+          {notification && (
+            <Notification message={notification.message} type={notification.type as any} onClose={() => setNotification(null)} />
+          )}
         </form>
       </div>
     </div>
