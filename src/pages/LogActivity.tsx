@@ -34,7 +34,7 @@ export default function LogActivity() {
     try {
       const resp = await apiService.getActivityTypes()
       // tolerate wrappers - ensure array
-      const arr = Array.isArray(resp) ? resp : (resp?.data ?? resp?.items ?? resp?.results ?? [])
+      const arr = Array.isArray(resp) ? resp : []
       setActivities(arr as ActivityType[])
     } catch (err) {
       console.error('Failed to load activities', err)
@@ -51,7 +51,7 @@ export default function LogActivity() {
     setCreating(true)
     setMessage(null)
     try {
-      await apiService.createActivity({ name: newName, points: Number(newPoints), co2gSaved: newCo2 })
+      await apiService.createActivityType({ name: newName, points: Number(newPoints), description: '', category: 'Other' })
       setMessage(`Created activity "${newName}"`)
       // reset
       setNewName('')

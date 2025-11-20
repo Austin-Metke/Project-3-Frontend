@@ -18,8 +18,8 @@ export default function Leaderboard() {
     setError(null)
     try {
       // Try backend leaderboard first
-      const data = await apiService.getLeaderboard(range as any, 50)
-      const arr = Array.isArray(data) ? data : (data && data.data) || []
+      const data = await apiService.getLeaderboard()
+      const arr = Array.isArray(data) ? data : []
       // Normalize to LeaderboardEntry
       const normalized: LeaderboardEntry[] = (arr as any[]).map((r, idx) => {
         const rec = r && typeof r === 'object' ? (r as Record<string, any>) : {}
@@ -42,7 +42,7 @@ export default function Leaderboard() {
       // Backend failed — fallback to client-side aggregation of activity-logs
       try {
         const logs = await apiService.getAllActivityLogs()
-        const arr = Array.isArray(logs) ? logs : (logs && logs.data) || []
+        const arr = Array.isArray(logs) ? logs : []
         const map = new Map<string | number, { name?: string; totalPoints: number; totalCo2gSaved: number }>()
 
         for (const l of arr as any[]) {

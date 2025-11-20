@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import apiService from '../services/api'
 import './Auth.css'
 
 export default function GitHubCallback() {
@@ -41,15 +40,10 @@ export default function GitHubCallback() {
       }
 
       try {
-        // Call backend to exchange code for token + user profile
-        const result = await apiService.exchangeOAuthCode('github', code, state)
-        if (!mounted) return
-        if (result && result.token) {
-          // apiService.exchangeOAuthCode already stores token and user in localStorage
-          navigate('/dashboard')
-          return
-        }
-        setError('Failed to obtain authentication token from server')
+        // GitHub OAuth exchange - backend doesn't have this endpoint yet
+        // For now, redirect to login with an error message
+        setError('GitHub OAuth is not yet implemented on the backend')
+        setTimeout(() => navigate('/login'), 3000)
       } catch (err) {
         if (!mounted) return
         setError(err instanceof Error ? err.message : 'Authentication failed')

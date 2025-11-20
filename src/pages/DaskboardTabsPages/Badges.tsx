@@ -26,7 +26,7 @@ export default function Badges() {
       setError(null)
       const resp = await apiService.getUserBadges()
       // Normalize response shape
-      const list = Array.isArray(resp) ? resp : (resp?.data ?? [])
+      const list = Array.isArray(resp) ? resp : []
       setBadges(list.map((b: any) => ({ id: String(b.id ?? b.badgeId ?? Math.random()), title: b.title ?? b.name ?? 'Badge', description: b.description ?? '', earnedDate: b.earnedDate ?? b.createdAt })))
     } catch (err) {
       console.error('Failed to fetch badges:', err)

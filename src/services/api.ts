@@ -480,19 +480,19 @@ class ApiService {
 
   // Legacy/deprecated methods - kept for backward compatibility
   /** @deprecated Use getAllActivityTypes() instead */
-  async getActivityTypes() {
+  async getActivityTypes(): Promise<ActivityType[]> {
     return this.getAllActivityTypes()
   }
 
   /** @deprecated Use createActivityLog() instead */
-  async logActivity(activityData: { activityTypeId: string; description?: string }) {
+  async logActivity(activityData: { activityTypeId: string | number; description?: string }) {
     const userId = this.getCurrentUserId()
     if (!userId) {
       throw new Error('User not authenticated')
     }
     return this.createActivityLog({
       userId,
-      activityTypeId: activityData.activityTypeId,
+      activityTypeId: String(activityData.activityTypeId),
       description: activityData.description
     })
   }
@@ -525,6 +525,36 @@ class ApiService {
     // Placeholder - return empty array until badges endpoint is implemented
     console.warn('Badges endpoint not yet implemented')
     return []
+  }
+
+  // Challenges endpoint (tries multiple patterns)
+  async getChallenges(userId?: string | number): Promise<Challenge[]> {
+    try {
+      // Try user-specific challenges first if userId provided
+      if (userId) {
+        try {
+          const response = await this.api.get<ApiResponse<Challenge[]>>(`/challenges/user/${userId}`)
+          return response.data.data || response.data as any || []
+        } catch (err) {
+          // Fall through to global endpoint
+        }
+      }
+
+      // Try global challenges endpoint
+      try {
+        const response = await this.api.get<ApiResponse<Challenge[]>>('/challenges')
+        return response.data.data || response.data as any || []
+      } catch (err) {
+        // Backend may not have challenges endpoint yet
+        if (axios.isAxiosError(err) && err.response?.status === 404) {
+          console.warn('Challenges endpoint not implemented in backend')
+          return []
+        }
+        throw err
+      }
+    } catch (error) {
+      this.handleError(error)
+    }
   }
 
   // Helper method to get current user ID
