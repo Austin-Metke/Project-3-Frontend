@@ -6,8 +6,16 @@ import type {
   AuthResponse, 
   LoginCredentials, 
   SignUpData,
+  UpdateUserData,
   UserStats,
-  User
+  User,
+  ActivityLog,
+  CreateActivityLogData,
+  ActivityType,
+  CreateActivityTypeData,
+  UpdateActivityTypeData,
+  LeaderboardEntry,
+  Challenge
 } from '../types'
 
 // Base API configuration
@@ -205,6 +213,42 @@ class ApiService {
     }
   }
 
+  // User endpoints (UserController)
+  async getAllUsers(): Promise<User[]> {
+    try {
+      const response = await this.api.get<ApiResponse<User[]>>('/auth')
+      return response.data.data
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
+  async getUserById(id: string): Promise<User> {
+    try {
+      const response = await this.api.get<ApiResponse<User>>(`/auth/${id}`)
+      return response.data.data
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
+  async updateUser(id: string, userData: UpdateUserData): Promise<User> {
+    try {
+      const response = await this.api.put<ApiResponse<User>>(`/auth/update/${id}`, userData)
+      return response.data.data
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    try {
+      await this.api.delete(`/auth/delete/${id}`)
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
   // User/Stats endpoints
   async getUserStats(): Promise<UserStats> {
     try {
@@ -315,205 +359,183 @@ class ApiService {
     }
   }
 
-  // Activity types
+  // Activity Logs endpoints (TypeLogsController - /activity-logs)
+  async getAllActivityLogs(): Promise<ActivityLog[]> {
+    try {
+      const response = await this.api.get<ApiResponse<ActivityLog[]>>('/activity-logs')
+      return response.data.data
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
+  async getActivityLogById(id: string): Promise<ActivityLog> {
+    try {
+      const response = await this.api.get<ApiResponse<ActivityLog>>(`/activity-logs/${id}`)
+      return response.data.data
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
+  async getActivityLogsByUserId(userId: string): Promise<ActivityLog[]> {
+    try {
+      const response = await this.api.get<ApiResponse<ActivityLog[]>>(`/activity-logs/user/${userId}`)
+      return response.data.data
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
+  async getActivityLogsByActivityType(activityTypeId: string): Promise<ActivityLog[]> {
+    try {
+      const response = await this.api.get<ApiResponse<ActivityLog[]>>(`/activity-logs/activity/${activityTypeId}`)
+      return response.data.data
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
+  async createActivityLog(logData: CreateActivityLogData): Promise<ActivityLog> {
+    try {
+      const response = await this.api.post<ApiResponse<ActivityLog>>('/activity-logs', logData)
+      return response.data.data
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
+  async deleteActivityLog(id: string): Promise<void> {
+    try {
+      await this.api.delete(`/activity-logs/${id}`)
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
+  // Activity Types endpoints (TypeActivityController - /activities)
+  async getAllActivityTypes(): Promise<ActivityType[]> {
+    try {
+      const response = await this.api.get<ApiResponse<ActivityType[]>>('/activities')
+      return response.data.data
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
+  async getActivityTypeById(id: string): Promise<ActivityType> {
+    try {
+      const response = await this.api.get<ApiResponse<ActivityType>>(`/activities/${id}`)
+      return response.data.data
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
+  async createActivityType(activityData: CreateActivityTypeData): Promise<ActivityType> {
+    try {
+      const response = await this.api.post<ApiResponse<ActivityType>>('/activities', activityData)
+      return response.data.data
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
+  async updateActivityType(id: string, activityData: UpdateActivityTypeData): Promise<ActivityType> {
+    try {
+      const response = await this.api.put<ApiResponse<ActivityType>>(`/activities/${id}`, activityData)
+      return response.data.data
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
+  async deleteActivityType(id: string): Promise<void> {
+    try {
+      await this.api.delete(`/activities/${id}`)
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
+  // Leaderboard endpoints (LeaderboardController - /leaderboard)
+  async getLeaderboard(): Promise<LeaderboardEntry[]> {
+    try {
+      const response = await this.api.get<ApiResponse<LeaderboardEntry[]>>('/leaderboard')
+      return response.data.data
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
+  // Home endpoint (HomeController)
+  async getHome(): Promise<{ message?: string; [key: string]: unknown }> {
+    try {
+      const response = await this.api.get('/')
+      return response.data
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
+  // Legacy/deprecated methods - kept for backward compatibility
+  /** @deprecated Use getAllActivityTypes() instead */
   async getActivityTypes() {
-    const response = await this.api.get('/activities')
-    return response.data.data ?? response.data
+    return this.getAllActivityTypes()
   }
 
-  // Create a new activity type (dev/admin)
-  async createActivity(activityData: { name: string; points: number; co2gSaved?: string | number }) {
-    try {
-      const response = await this.api.post('/activities', activityData)
-      return response.data.data ?? response.data
-    } catch (error) {
-      this.handleError(error)
+  /** @deprecated Use createActivityLog() instead */
+  async logActivity(activityData: { activityTypeId: string; description?: string }) {
+    const userId = this.getCurrentUserId()
+    if (!userId) {
+      throw new Error('User not authenticated')
     }
+    return this.createActivityLog({
+      userId,
+      activityTypeId: activityData.activityTypeId,
+      description: activityData.description
+    })
   }
 
-  // Activity logs
-  async logActivity(activityData: { activityTypeId: number; description?: string }) {
-    const response = await this.api.post('/activity-logs', activityData)
-    return response.data.data ?? response.data
-  }
-
-  async getActivityHistory(userId?: number) {
-    const userStr = localStorage.getItem('user')
-    const id = userId ?? (userStr ? JSON.parse(userStr).id : undefined)
-    if (!id) throw new Error('Missing user id for activity history')
-    const response = await this.api.get(`/activity-logs/user/${id}`)
-    return response.data.data ?? response.data
-  }
-
-  // Get all activity logs (used for client-side leaderboard fallback)
-  async getAllActivityLogs() {
-    try {
-      const response = await this.api.get('/activity-logs')
-      return response.data.data ?? response.data
-    } catch (error) {
-      this.handleError(error)
+  /** @deprecated Use getActivityLogsByUserId() instead */
+  async getActivityHistory() {
+    const userId = this.getCurrentUserId()
+    if (!userId) {
+      throw new Error('User not authenticated')
     }
+    // This is a simplified version - you may want to add filtering on the backend
+    return this.getActivityLogsByUserId(userId)
   }
 
-  // Leaderboard
-  async getLeaderboard(range: 'WEEK' | 'MONTH' | 'SIX_MONTHS' | 'YEAR' | 'ALL_TIME' = 'WEEK', limit = 10) {
-    const response = await this.api.get('/leaderboard', { params: { range, limit } })
-    return response.data.data ?? response.data
+  /** @deprecated Use getLeaderboard() instead */
+  async getGlobalLeaderboard() {
+    // Backend doesn't support period filtering yet, just return all
+    return this.getLeaderboard()
   }
 
-  // Challenges (graceful fallback if backend not ready)
-  async getChallenges(userId?: number) {
-    // Try a number of common challenge endpoints (don't change backend)
-    const candidates = [
-      { path: '/challenges', params: userId ? { userId } : undefined },
-      { path: '/challenge', params: userId ? { userId } : undefined },
-      { path: `/challenges/user/${userId}`, params: undefined },
-      { path: `/challenges/user`, params: userId ? { userId } : undefined },
-      { path: `/auth/${userId}/challenges`, params: undefined },
-      { path: `/users/${userId}/challenges`, params: undefined },
-    ]
-
-    const extractArray = (raw: unknown): unknown[] => {
-      // raw might be: array, { data: [...] }, { data: { items: [...] } }, { _embedded: { challenges: [...] } }, or { challenges: [...] }
-      if (!raw) return []
-      // If already an array
-      if (Array.isArray(raw)) return raw
-
-      if (typeof raw === 'object' && raw !== null) {
-        const rec = raw as Record<string, unknown>
-
-        // Common API wrappers
-        const candidatesKeys = [
-          'data',
-          'items',
-          'results',
-          'challenges',
-          'challengeList',
-          'rows',
-        ]
-
-        for (const k of candidatesKeys) {
-          const val = rec[k]
-          if (Array.isArray(val)) return val
-          if (val && typeof val === 'object') {
-            // nested wrapper like { data: { items: [...] } }
-            const nested = (val as Record<string, unknown>)
-            for (const kk of candidatesKeys) {
-              if (Array.isArray(nested[kk])) return nested[kk] as unknown[]
-            }
-          }
-        }
-
-        // HAL style: { _embedded: { challenges: [...] } }
-        if ('_embedded' in rec && rec._embedded && typeof rec._embedded === 'object') {
-          const emb = rec._embedded as Record<string, unknown>
-          for (const v of Object.values(emb)) {
-            if (Array.isArray(v)) return v
-          }
-        }
-
-        // If any property is an array, prefer it
-        for (const v of Object.values(rec)) {
-          if (Array.isArray(v)) return v
-        }
-      }
-
-      // Give up — return empty array
-      return []
-    }
-
-    for (const c of candidates) {
-      try {
-        const resp = await this.api.get(c.path, { params: c.params })
-        const payload = resp?.data ?? resp
-        const arr = extractArray(payload)
-        if (import.meta.env.DEV) {
-          try {
-            // eslint-disable-next-line no-console
-            console.debug('[api.getChallenges] tried', c.path, 'status=', resp.status, 'found=', arr.length)
-          } catch (e) {}
-        }
-        if (arr.length) return arr
-      } catch (e) {
-        // try next
-      }
-    }
-
-    // Final attempt: generic /challenges without params and be tolerant about response shapes
-    try {
-      const response = await this.api.get('/challenges')
-      const payload = response?.data ?? response
-      const arr = extractArray(payload)
-      if (arr.length) return arr
-      // If nothing matched, but payload itself is an object/array, attempt to return meaningful parts
-      if (Array.isArray(payload)) return payload
-      if (payload && typeof payload === 'object') {
-        // return any nested array or the object itself wrapped
-        const nested = extractArray(payload)
-        if (nested.length) return nested
-        return [payload]
-      }
-      return []
-    } catch (error) {
-      this.handleError(error)
-    }
+  /** @deprecated Challenges not yet implemented in backend */
+  async getActiveChallenges(): Promise<Challenge[]> {
+    // Placeholder - return empty array until challenges endpoint is implemented
+    console.warn('Challenges endpoint not yet implemented')
+    return []
   }
 
-  // Badges (placeholder; often derived from completed challenges)
+  /** @deprecated Badges not yet implemented in backend */
   async getUserBadges() {
-    const userStr = localStorage.getItem('user')
-    const id = userStr ? JSON.parse(userStr).id : undefined
-    const candidates = [
-      '/user/badges',
-      '/badges',
-      id ? `/auth/${id}/badges` : undefined,
-      id ? `/users/${id}/badges` : undefined,
-    ].filter(Boolean) as string[]
-
-    for (const path of candidates) {
-      try {
-        const resp = await this.api.get(path)
-        if (resp && resp.data) return resp.data.data ?? resp.data
-      } catch {
-        // try next
-      }
-    }
-
-    // fallback
-    const response = await this.api.get('/user/badges')
-    return response.data.data ?? response.data
+    // Placeholder - return empty array until badges endpoint is implemented
+    console.warn('Badges endpoint not yet implemented')
+    return []
   }
 
-  /**
-   * Exchange OAuth code with backend to obtain auth token and user profile
-   * Expected backend endpoint: POST /auth/oauth/:provider
-   */
-  async exchangeOAuthCode(provider: string, code: string, state?: string): Promise<AuthResponse> {
+  // Helper method to get current user ID
+  private getCurrentUserId(): string | null {
+    const userStr = localStorage.getItem('user')
+    if (!userStr) return null
     try {
-      const payload: Record<string, unknown> = { code }
-      if (state) payload.state = state
-
-      const response = await this.api.post(`/auth/oauth/${provider}`, payload)
-      const raw: unknown = response.data
-      function hasData(obj: unknown): obj is { data: unknown } {
-        return typeof obj === 'object' && obj !== null && 'data' in obj
-      }
-      const dataUnknown: unknown = hasData(raw) ? (raw as { data: unknown }).data : raw
-      const dataRecord = (dataUnknown && typeof dataUnknown === 'object') ? (dataUnknown as Record<string, unknown>) : {}
-      const token = (dataRecord.token as string) || (dataRecord.accessToken as string) || (dataRecord.jwt as string) || (dataRecord.authToken as string)
-      const user = (dataRecord.user as unknown) || (dataRecord.profile as unknown) || (dataRecord.account as unknown)
-
-      if (token) localStorage.setItem('authToken', token)
-      if (user) localStorage.setItem('user', JSON.stringify(user))
-
-      const result: AuthResponse = {
-        user: (user as unknown) as User,
-        token: (token as unknown) as string,
-      }
-
-      return result
-    } catch (error) {
-      this.handleError(error)
+      const user = JSON.parse(userStr)
+      return user.id
+    } catch {
+      return null
     }
   }
 }

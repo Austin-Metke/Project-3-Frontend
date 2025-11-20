@@ -48,6 +48,11 @@ export default function Dashboard() {
     navigate('/login')
   }
 
+  const useDemoMode = () => {
+    // Navigate to the mock dashboard instead
+    navigate('/dashboard-preview')
+  }
+
   if (loading) {
     return (
       <div className="dashboard-container">
@@ -63,11 +68,19 @@ export default function Dashboard() {
     return (
       <div className="dashboard-container">
         <div className="error-card">
-          <h2>⚠️ Unable to Load Dashboard</h2>
+          <h2>Unable to Load Dashboard</h2>
           <p>{error}</p>
-          <button onClick={loadDashboardData} className="btn-primary">
-            Try Again
-          </button>
+          <div className="info-banner" style={{ marginTop: '1rem' }}>
+            The backend API is not connected. Try the Demo Dashboard to see how it will look.
+          </div>
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+            <button onClick={loadDashboardData} className="btn-primary">
+              Try Again
+            </button>
+            <button onClick={useDemoMode} className="btn-demo">
+              View Demo Dashboard
+            </button>
+          </div>
         </div>
       </div>
     )
