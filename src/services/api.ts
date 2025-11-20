@@ -22,6 +22,8 @@ class ApiService {
       headers: {
         'Content-Type': 'application/json',
       },
+      // Allow sending/receiving cookies for session-based auth
+      withCredentials: true,
     })
 
     // Request interceptor to add auth token
@@ -63,7 +65,20 @@ class ApiService {
   // Authentication endpoints
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      const response = await this.api.post('/auth/login', credentials)
+      // Some backends expect `password` while others expect `passwordHash`.
+      // Send both when available to maximize compatibility.
+      const payload = {
+        ...credentials,
+        password: credentials.password ?? credentials.passwordHash,
+        passwordHash: credentials.passwordHash ?? credentials.password,
+      }
+      const response = await this.api.post('/auth/login', payload)
+      if (import.meta.env.DEV) {
+        try {
+          // eslint-disable-next-line no-console
+          console.debug('[api.login] POST /auth/login status=', response.status, 'data=', response.data)
+        } catch (e) {}
+      }
       const raw: unknown = response.data
       function hasData(obj: unknown): obj is { data: unknown } {
         return typeof obj === 'object' && obj !== null && 'data' in obj
@@ -78,6 +93,20 @@ class ApiService {
       if (token) localStorage.setItem('authToken', token)
       if (user) localStorage.setItem('user', JSON.stringify(user))
 
+      // Some backends use cookie-based sessions and return no token/user in the login response.
+      // In that case, attempt to fetch the user profile (requires withCredentials) and persist it.
+      if (!token && !user) {
+        try {
+          const profile = await this.getUserProfile()
+          if (profile) {
+            localStorage.setItem('user', JSON.stringify(profile))
+            return { user: profile, token: '' }
+          }
+        } catch (e) {
+          // ignore — we'll return whatever we have
+        }
+      }
+
       // Construct a typed response for the caller
       const result: AuthResponse = {
         user: (user as unknown) as User,
@@ -86,6 +115,12 @@ class ApiService {
 
       return result
     } catch (error) {
+      if (import.meta.env.DEV) {
+        try {
+          // eslint-disable-next-line no-console
+          console.debug('[api.login] error=', (error as any)?.response?.status, (error as any)?.response?.data)
+        } catch (e) {}
+      }
       this.handleError(error)
     }
   }
@@ -121,7 +156,13 @@ class ApiService {
     // Try each candidate until one succeeds
     for (const c of candidates) {
       try {
-        const resp = await this.api.post(c.path, userData, { params: c.params })
+        // normalize password field names for compatibility
+        const payload = {
+          ...userData,
+          password: userData.password ?? userData.passwordHash,
+          passwordHash: userData.passwordHash ?? userData.password,
+        }
+        const resp = await this.api.post(c.path, payload, { params: c.params })
         if (import.meta.env.DEV) {
           try {
             // Log raw response for easier debugging in development
@@ -304,6 +345,16 @@ class ApiService {
     return response.data.data ?? response.data
   }
 
+  // Get all activity logs (used for client-side leaderboard fallback)
+  async getAllActivityLogs() {
+    try {
+      const response = await this.api.get('/activity-logs')
+      return response.data.data ?? response.data
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
   // Leaderboard
   async getLeaderboard(range: 'WEEK' | 'MONTH' | 'SIX_MONTHS' | 'YEAR' | 'ALL_TIME' = 'WEEK', limit = 10) {
     const response = await this.api.get('/leaderboard', { params: { range, limit } })
@@ -316,6 +367,8 @@ class ApiService {
     const candidates = [
       { path: '/challenges', params: userId ? { userId } : undefined },
       { path: '/challenge', params: userId ? { userId } : undefined },
+      { path: `/challenges/user/${userId}`, params: undefined },
+      { path: `/challenges/user`, params: userId ? { userId } : undefined },
       { path: `/auth/${userId}/challenges`, params: undefined },
       { path: `/users/${userId}/challenges`, params: undefined },
     ]

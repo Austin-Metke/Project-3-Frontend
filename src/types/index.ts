@@ -93,3 +93,21 @@ export interface UserStats {
   weeklyProgress: WeeklyProgressPoint[]
 }
 
+// Leaderboard entry returned by backend or synthesized by frontend
+export interface LeaderboardEntry {
+  userId: number | string
+  name?: string
+  totalPoints: number
+  totalCo2gSaved?: number | string
+}
+
+// Challenge shape (kept permissive to tolerate backend shapes)
+export interface Challenge {
+  id?: number | string
+  name?: string
+  description?: string
+  points?: number
+  isCompleted?: boolean
+  userId?: number | string
+}
+

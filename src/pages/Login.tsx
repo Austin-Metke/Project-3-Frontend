@@ -22,6 +22,13 @@ export default function Login() {
       // Backend expects { name, passwordHash }
       const result = await apiService.login({ name, passwordHash: password } as any)
 
+      if (import.meta.env.DEV) {
+        try {
+          // eslint-disable-next-line no-console
+          console.debug('[Login] login result:', result, 'localStorage user=', localStorage.getItem('user'), 'token=', localStorage.getItem('authToken'))
+        } catch (e) {}
+      }
+
       // Backend may return either a wrapped AuthResponse or the user object directly.
       const user = (result && (result.user ?? result))
       if (user) {
