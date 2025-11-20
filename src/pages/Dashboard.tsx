@@ -171,7 +171,6 @@ export default function Dashboard() {
           <div className="activities-list">
             {stats.recentActivities.map((activity) => (
               <div key={activity.id} className="activity-item">
-                <div className="activity-icon">{getCategoryIcon(String(activity.category ?? 'Other'))}</div>
                 <div className="activity-content">
                   <h4>{activity.activityType?.name ?? 'Activity'}</h4>
                   <p className="activity-category">{activity.category ?? 'Other'}</p>
@@ -196,32 +195,19 @@ export default function Dashboard() {
             <span>Log Activity</span>
           </button>
           <button className="action-btn" onClick={() => navigate('/leaderboard')}>
-            <span className="action-icon">LB</span>
+            <span className="action-icon"></span>
             <span>Leaderboard</span>
           </button>
           <button className="action-btn" onClick={() => navigate('/challenges')}>
-            <span className="action-icon">CH</span>
+            <span className="action-icon"></span>
             <span>Challenges</span>
           </button>
           <button className="action-btn" onClick={() => navigate('/badges')}>
-            <span className="action-icon">BD</span>
+            <span className="action-icon"></span>
             <span>Badges</span>
           </button>
         </div>
       </div>
     </div>
   )
-}
-
-// Helper function to get category icons
-function getCategoryIcon(category: string): string {
-  const icons: Record<string, string> = {
-    Transportation: '🚴',
-    Recycling: '♻️',
-    Energy: '⚡',
-    Water: '💧',
-    Food: '🥗',
-    Other: '🌍'
-  }
-  return icons[category] || '🌍'
 }
