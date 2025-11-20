@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { GoogleLogin } from '@react-oauth/google'
 import apiService from '../services/api'
 import githubAuthService from '../services/githubAuth'
+import googleAuthService from '../services/googleAuth'
 import './Auth.css'
 import Notification from '../components/Notification'
 
@@ -60,6 +62,27 @@ export default function Login() {
   // GitHub OAuth login
   function handleGitHubLogin() {
     githubAuthService.initiateLogin()
+  }
+
+  // Google OAuth login
+  async function handleGoogleSuccess(credentialResponse: any) {
+    try {
+      setLoading(true)
+      await googleAuthService.handleGoogleLogin(credentialResponse)
+      setNotification({ message: 'Google login successful', type: 'success' })
+      setTimeout(() => navigate('/dashboard'), 600)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Google login failed'
+      setError(msg)
+      setNotification({ message: msg, type: 'error' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleGoogleError() {
+    setError('Google login failed')
+    setNotification({ message: 'Google login failed', type: 'error' })
   }
 
   return (
@@ -124,7 +147,13 @@ export default function Login() {
             Sign in with GitHub
           </button>
 
-          
+          <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center' }}>
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              useOneTap
+            />
+          </div>
 
           <div className="auth-footer">
             <p>

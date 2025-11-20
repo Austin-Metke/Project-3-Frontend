@@ -201,6 +201,20 @@ class ApiService {
     }
   }
 
+  async loginWithGoogle(credential: string): Promise<AuthResponse> {
+    try {
+      const response = await this.api.post<ApiResponse<AuthResponse>>('/auth/google', { credential })
+      const { data } = response.data
+      
+      if (data.token) localStorage.setItem('authToken', data.token)
+      localStorage.setItem('user', JSON.stringify(data.user))
+      
+      return data
+    } catch (error) {
+      this.handleError(error)
+    }
+  }
+
   async logout(): Promise<void> {
     try {
       await this.api.post('/auth/logout')
