@@ -1,158 +1,172 @@
 import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { useNavigate, Link } from 'react-router-dom'
+import apiService from '../services/api'
+import './Auth.css'
+import Notification from '../components/Notification'
 
 export default function SignUp() {
+  const navigate = useNavigate()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const navigation = useNavigation()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [notification, setNotification] = useState<{ message: string; type?: 'success' | 'error' | 'info' } | null>(null)
 
-  function handleSubmit() {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+
+    // Validation
     if (!name || !email || !password || !confirmPassword) {
-      return Alert.alert('Error', 'Please fill out all fields.')
+      setError('Please fill out all fields.')
+      return
     }
     if (password !== confirmPassword) {
-      return Alert.alert('Error', 'Passwords do not match.')
+      setError('Passwords do not match.')
+      return
     }
-    Alert.alert('Sign Up', `Account created for ${name} (${email})`)
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      // Backend expects password in 'passwordHash'
+      const result = await apiService.signUp({ name, email, passwordHash: password } as any)
+
+      // If backend returns a user object without a token, attempt to log in automatically
+      const token = result?.token ?? localStorage.getItem('authToken')
+      if (token) {
+        setNotification({ message: 'Account created', type: 'success' })
+        setTimeout(() => navigate('/dashboard'), 600)
+        return
+      }
+
+      if (result?.user) {
+        // Try to login using the same credentials to establish a session or retrieve token
+        try {
+          const loginRes = await apiService.login({ name, passwordHash: password } as any)
+          const loginToken = loginRes?.token ?? localStorage.getItem('authToken')
+          if (loginToken || loginRes?.user) {
+            setNotification({ message: 'Account created and signed in', type: 'success' })
+            setTimeout(() => navigate('/dashboard'), 600)
+            return
+          }
+        } catch (loginErr) {
+          // If auto-login fails, still treat signup as success but inform user to sign in
+          setNotification({ message: 'Account created — please sign in', type: 'success' })
+          setTimeout(() => navigate('/login'), 800)
+          return
+        }
+      }
+
+      setError('Sign up succeeded but server did not return a user or token. Please check backend behavior.')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Sign up failed. Please try again.'
+      setError(msg)
+      setNotification({ message: msg, type: 'error' })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.title}>Sign Up</Text>
-        <Text style={styles.subtitle}>Create your EcoPoints account</Text>
+    <div className="auth-container">
+      <div className="auth-card">
+        <h1>🌱 Join EcoPoints</h1>
+        <p className="auth-subtitle">Create your account and start making an impact</p>
 
-        <View style={styles.form}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name</Text>
-            <TextInput
-              style={styles.input}
+        
+
+        {error && (
+          <div className="error-banner">
+            ⚠️ {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="name">Full Name</label>
+            <input
+              id="name"
+              type="text"
               value={name}
-              onChangeText={setName}
+              onChange={e => setName(e.target.value)}
               placeholder="Enter your full name"
+              required
+              disabled={loading}
             />
-          </View>
+          </div>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
+          <div className="form-group">
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
               value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              placeholder="Enter your email"
+              onChange={e => setEmail(e.target.value)}
+              placeholder="your.email@example.com"
+              required
+              disabled={loading}
             />
-          </View>
+          </div>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
               value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              placeholder="Create a password"
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Create a password (min 6 characters)"
+              required
+              disabled={loading}
+              minLength={6}
             />
-          </View>
+          </div>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Confirm Password</Text>
-            <TextInput
-              style={styles.input}
+          <div className="form-group">
+            <label htmlFor="confirmPassword">Confirm Password</label>
+            <input
+              id="confirmPassword"
+              type="password"
               value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
+              onChange={e => setConfirmPassword(e.target.value)}
               placeholder="Re-enter your password"
+              required
+              disabled={loading}
+              minLength={6}
             />
-          </View>
+          </div>
 
-          <View style={styles.footer}>
-            <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-              <Text style={styles.buttonText}>Sign Up</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('Login' as never)}>
-              <Text style={styles.switchText}>Already have an account?</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </View>
+          <button 
+            className="btn-submit" 
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? 'Creating account...' : 'Sign Up'}
+          </button>
+
+          <div className="divider">
+            <span>OR</span>
+          </div>
+
+          
+
+          <div className="auth-footer">
+            <p>
+              Already have an account? <Link to="/login">Log in</Link>
+            </p>
+          </div>
+          {notification && (
+            <Notification message={notification.message} type={notification.type as any} onClose={() => setNotification(null)} />
+          )}
+        </form>
+      </div>
+    </div>
   )
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 24,
-    maxWidth: 420,
-    alignSelf: 'center',
-    width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 24,
-  },
-  form: {
-    gap: 16,
-  },
-  inputGroup: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#fafafa',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  button: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  switchText: {
-    color: '#4CAF50',
-    fontSize: 14,
-  },
-})

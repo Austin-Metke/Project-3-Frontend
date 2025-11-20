@@ -1,248 +1,141 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  TouchableOpacity,
-  Image,
-  Platform,
-} from "react-native";
-import { useAuth } from "../auth/AuthProvider"; // cleaned path
+import { useState } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import apiService from '../services/api'
+import githubAuthService from '../services/githubAuth'
+import './Auth.css'
+import Notification from '../components/Notification'
 
-const GoogleLogo = () => (
-  <View style={styles.googleMark}>
-    <View style={[styles.arc, styles.arcBlue]} />
-    <View style={[styles.arc, styles.arcRed]} />
-    <View style={[styles.arc, styles.arcYellow]} />
-    <View style={[styles.arc, styles.arcGreen]} />
-  </View>
-);
+export default function Login() {
+  const navigate = useNavigate()
+  const [name, setName] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [notification, setNotification] = useState<{ message: string; type?: 'success' | 'error' | 'info' } | null>(null)
 
-const Login: React.FC = () => {
-  const { user, loading, signInWithGoogle, signOut } = useAuth();
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
 
-  const onPressSignIn = async () => {
-    setError(null);
-    setSubmitting(true);
     try {
-      await signInWithGoogle();
-    } catch (e: any) {
-      setError(e?.message ?? "Sign-in failed. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+      // Backend expects { name, passwordHash }
+      const result = await apiService.login({ name, passwordHash: password } as any)
 
-  const onPressSignOut = async () => {
-    setError(null);
-    setSubmitting(true);
-    try {
-      await signOut();
-    } catch (e: any) {
-      setError(e?.message ?? "Sign-out failed. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+      if (import.meta.env.DEV) {
+        try {
+          // eslint-disable-next-line no-console
+          console.debug('[Login] login result:', result, 'localStorage user=', localStorage.getItem('user'), 'token=', localStorage.getItem('authToken'))
+        } catch (e) {}
+      }
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.muted}>Preparing sign-in…</Text>
-      </View>
-    );
+      // Backend may return either a wrapped AuthResponse or the user object directly.
+      const user = (result && (result.user ?? result))
+      if (user) {
+        setNotification({ message: 'Login successful', type: 'success' })
+        // apiService stores user when present; delay navigation so user sees toast
+        setTimeout(() => navigate('/dashboard'), 600)
+        return
+      }
+
+      // Otherwise check token fallback
+      const token = result?.token ?? localStorage.getItem('authToken')
+      if (token) {
+        setNotification({ message: 'Login successful', type: 'success' })
+        setTimeout(() => navigate('/dashboard'), 600)
+        return
+      }
+
+      setError('Login failed: unexpected server response. Check backend behavior.')
+      setNotification({ message: 'Login failed', type: 'error' })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Login failed. Please try again.'
+      setError(msg)
+      setNotification({ message: msg, type: 'error' })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  if (user) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.card}>
-          {user.picture ? (
-            <Image source={{ uri: user.picture }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback]} />
-          )}
-          <Text style={styles.title}>Welcome{user.name ? `, ${user.name}` : "!"}</Text>
-          <Text style={styles.subtitle}>{user.email}</Text>
-
-          <TouchableOpacity
-            style={[styles.button, styles.outlineBtn, submitting && styles.disabled]}
-            onPress={onPressSignOut}
-            disabled={submitting}
-            activeOpacity={0.8}
-          >
-            {submitting ? (
-              <ActivityIndicator />
-            ) : (
-              <Text style={[styles.buttonText, styles.outlineText]}>Sign out</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.envHint}>
-          {Platform.OS === "web"
-            ? "You're on the web — make sure the Google OAuth redirect URI matches your deployed origin."
-            : "You're on a native platform — Expo AuthSession proxy will handle the redirect."}
-        </Text>
-      </View>
-    );
+  // GitHub OAuth login
+  function handleGitHubLogin() {
+    githubAuthService.initiateLogin()
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <GoogleLogo />
-        <Text style={styles.title}>Sign in to EcoPoints</Text>
-        <Text style={styles.subtitle}>Use any personal Google account</Text>
+    <div className="auth-container">
+      <div className="auth-card">
+        <h1>Log in to EcoPoints</h1>
+        <p className="auth-subtitle">Sign in to track your eco-friendly journey</p>
 
-        {!!error && <Text style={styles.error}>{error}</Text>}
+        {error && (
+          <div className="error-banner">
+            {error}
+          </div>
+        )}
 
-        <TouchableOpacity
-          style={[styles.button, submitting && styles.disabled]}
-          onPress={onPressSignIn}
-          disabled={submitting}
-          activeOpacity={0.9}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Continue with Google</Text>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="name">Username</label>
+            <input
+              id="name"
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="your username"
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <button 
+            className="btn-submit" 
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? 'Signing in...' : 'Sign in'}
+          </button>
+
+          <div className="divider">
+            <span>OR</span>
+          </div>
+
+          <button 
+            type="button"
+            className="btn-github" 
+            onClick={handleGitHubLogin}
+          >
+            <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor" style={{marginRight: '8px'}}>
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
+            Sign in with GitHub
+          </button>
+
+          
+
+          <div className="auth-footer">
+            <p>
+              Don't have an account? <Link to="/signup">Sign up</Link>
+            </p>
+          </div>
+          {notification && (
+            <Notification message={notification.message} type={notification.type as any} onClose={() => setNotification(null)} />
           )}
-        </TouchableOpacity>
-
-        <Text style={styles.disclaimer}>
-          By continuing, you agree to our Terms and acknowledge our Privacy Policy.
-        </Text>
-      </View>
-
-      <Text style={styles.envHint}>
-        {Platform.OS === "web"
-          ? "If you see a redirect error, verify your Google OAuth Client ID and web redirect URIs."
-          : "If sign-in doesn’t open, make sure the Expo Go client is updated."}
-      </Text>
-    </View>
-  );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-    backgroundColor: "#F7F7FB",
-  },
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  muted: {
-    color: "#666",
-    fontSize: 14,
-  },
-  card: {
-    width: "100%",
-    maxWidth: 420,
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 24,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 16,
-    elevation: 4,
-    alignItems: "center",
-    gap: 12,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  subtitle: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
-  },
-  error: {
-    color: "#B00020",
-    textAlign: "center",
-    backgroundColor: "#FFECEF",
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    width: "100%",
-  },
-  button: {
-    marginTop: 8,
-    width: "100%",
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#1B73E8",
-  },
-  outlineBtn: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-  },
-  disabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  outlineText: {
-    color: "#0F172A",
-  },
-  disclaimer: {
-    marginTop: 8,
-    fontSize: 12,
-    color: "#7A7A85",
-    textAlign: "center",
-  },
-  envHint: {
-    marginTop: 16,
-    fontSize: 12,
-    color: "#7A7A85",
-    textAlign: "center",
-    maxWidth: 420,
-  },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-  },
-  avatarFallback: {
-    backgroundColor: "#E5E7EB",
-  },
-  googleMark: {
-    width: 56,
-    height: 56,
-    marginBottom: 4,
-    position: "relative",
-  },
-  arc: {
-    position: "absolute",
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 6,
-    borderColor: "transparent",
-  },
-  arcBlue: { borderTopColor: "#4285F4", transform: [{ rotate: "0deg" }] },
-  arcRed: { borderRightColor: "#EA4335", transform: [{ rotate: "90deg" }] },
-  arcYellow: { borderBottomColor: "#FBBC05", transform: [{ rotate: "180deg" }] },
-  arcGreen: { borderLeftColor: "#34A853", transform: [{ rotate: "270deg" }] },
-});
-
-export default Login;
+        </form>
+      </div>
+    </div>
+  )
+}
