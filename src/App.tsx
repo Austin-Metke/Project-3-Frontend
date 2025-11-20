@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { GoogleOAuthProvider } from '@react-oauth/google'
 import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
@@ -10,6 +11,8 @@ import LogActivity from './pages/LogActivity'
 import './App.css'
 import { BackendStatusProvider } from './contexts/BackendStatusContext'
 import BackendStatusBanner from './components/BackendStatusBanner'
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
 // Protected Route component
 import { useEffect, useState } from 'react'
@@ -59,14 +62,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <BackendStatusProvider>
-      <BackendStatusBanner />
-    <Routes>
-      {/* Public Routes */}
-      <Route path="/home" element={<Home />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<SignUp />} />
-      <Route path="/auth/github/callback" element={<GitHubCallback />} />
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <BackendStatusProvider>
+        <BackendStatusBanner />
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/home" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="/auth/github/callback" element={<GitHubCallback />} />
       
   {/* Removed mock dashboard - app uses backend-driven /dashboard only */}
       <Route path="/challenges" element={<Challenges />} />
@@ -84,13 +88,14 @@ function App() {
         } 
       />
       
-      {/* Redirect root to dashboard */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      
-      {/* Catch all - redirect to dashboard */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
-    </BackendStatusProvider>
+        {/* Redirect root to dashboard */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        
+        {/* Catch all - redirect to dashboard */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+      </BackendStatusProvider>
+    </GoogleOAuthProvider>
   )
 }
 
