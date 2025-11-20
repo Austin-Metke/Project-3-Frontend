@@ -437,7 +437,13 @@ class ApiService {
 
   async createActivityType(activityData: CreateActivityTypeData): Promise<ActivityType> {
     try {
-      const response = await this.api.post<ApiResponse<ActivityType>>('/activities', activityData)
+      // Ensure co2gSaved is present; backend enforces NOT NULL on co2g_saved
+      const payload: Record<string, unknown> = { ...activityData }
+      const co2 = activityData.co2gSaved ?? 0
+      payload.co2gSaved = co2
+      // Send both camelCase and snake_case to maximize backend compatibility
+      ;(payload as any).co2g_saved = co2
+      const response = await this.api.post<ApiResponse<ActivityType>>('/activities', payload)
       // Backend may return object directly or wrapped in { data: {...} }
       return response.data.data || response.data as any
     } catch (error) {

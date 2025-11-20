@@ -75,7 +75,7 @@ export default function Leaderboard() {
   return (
     <div className="leaderboard-container">
       <div className="leaderboard-header">
-        <h1>🏅 Leaderboard</h1>
+        <h1>Leaderboard</h1>
         <div className="controls">
           <label>
             Range:

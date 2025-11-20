@@ -77,14 +77,14 @@ export default function SignUp() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1>🌱 Join EcoPoints</h1>
+        <h1>Join EcoPoints</h1>
         <p className="auth-subtitle">Create your account and start making an impact</p>
 
         
 
         {error && (
           <div className="error-banner">
-            ⚠️ {error}
+            Warning: {error}
           </div>
         )}
 

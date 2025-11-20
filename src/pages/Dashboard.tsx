@@ -97,7 +97,7 @@ export default function Dashboard() {
       {/* Header */}
       <header className="dashboard-header">
         <div>
-          <h1>🌱 EcoPoints Dashboard</h1>
+          <h1>EcoPoints Dashboard</h1>
           <p className="subtitle">Keep making a difference, one action at a time!</p>
           {user && <p className="welcome">Signed in as <strong>{user.name}</strong></p>}
         </div>
@@ -109,7 +109,7 @@ export default function Dashboard() {
       {/* Stats Overview */}
       <div className="stats-grid">
         <div className="stat-card stat-card-primary">
-          <div className="stat-icon">🏆</div>
+          <div className="stat-icon">Total</div>
           <div className="stat-content">
             <h3>Total Points</h3>
             <p className="stat-value">{stats.totalPoints.toLocaleString()}</p>
@@ -117,7 +117,7 @@ export default function Dashboard() {
         </div>
 
         <div className="stat-card stat-card-success">
-          <div className="stat-icon">🔥</div>
+          <div className="stat-icon">Streak</div>
           <div className="stat-content">
             <h3>Current Streak</h3>
             <p className="stat-value">{stats.currentStreak} days</p>
@@ -125,7 +125,7 @@ export default function Dashboard() {
         </div>
 
         <div className="stat-card stat-card-info">
-          <div className="stat-icon">📅</div>
+          <div className="stat-icon">Week</div>
           <div className="stat-content">
             <h3>This Week</h3>
             <p className="stat-value">{stats.weeklyPoints}</p>
@@ -133,7 +133,7 @@ export default function Dashboard() {
         </div>
 
         <div className="stat-card stat-card-warning">
-          <div className="stat-icon">📊</div>
+          <div className="stat-icon">Rank</div>
           <div className="stat-content">
             <h3>Global Rank</h3>
             <p className="stat-value">#{stats.rank}</p>
@@ -143,7 +143,7 @@ export default function Dashboard() {
 
       {/* Weekly Progress Chart */}
       <div className="card">
-        <h2>📈 Weekly Progress</h2>
+        <h2>Weekly Progress</h2>
         <div className="chart-container">
           {stats.weeklyProgress.map((day) => (
             <div key={day.day} className="chart-bar-wrapper">
@@ -166,7 +166,7 @@ export default function Dashboard() {
 
       {/* Recent Activities */}
       <div className="card">
-        <h2>🌿 Recent Activities</h2>
+        <h2>Recent Activities</h2>
         {stats.recentActivities.length > 0 ? (
           <div className="activities-list">
             {stats.recentActivities.map((activity) => (
@@ -189,22 +189,22 @@ export default function Dashboard() {
 
       {/* Quick Actions */}
       <div className="quick-actions">
-        <h2>⚡ Quick Actions</h2>
+        <h2>Quick Actions</h2>
         <div className="action-buttons">
           <button className="action-btn" onClick={() => navigate('/log-activity')}>
-            <span className="action-icon">➕</span>
+            <span className="action-icon">+</span>
             <span>Log Activity</span>
           </button>
           <button className="action-btn" onClick={() => navigate('/leaderboard')}>
-            <span className="action-icon">🏅</span>
+            <span className="action-icon">LB</span>
             <span>Leaderboard</span>
           </button>
           <button className="action-btn" onClick={() => navigate('/challenges')}>
-            <span className="action-icon">🎯</span>
+            <span className="action-icon">CH</span>
             <span>Challenges</span>
           </button>
           <button className="action-btn" onClick={() => navigate('/badges')}>
-            <span className="action-icon">⭐</span>
+            <span className="action-icon">BD</span>
             <span>Badges</span>
           </button>
         </div>
