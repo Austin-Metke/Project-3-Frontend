@@ -40,13 +40,13 @@ beforeEach(async () => {
   axiosInstance = {
     interceptors: {
       request: {
-        use: (fulfilled: any, rejected: any) => {
+        use: (fulfilled: any, _rejected: any) => {
           requestFulfilled = fulfilled
           return 0
         },
       },
       response: {
-        use: (fulfilled: any, rejected: any) => {
+        use: (_fulfilled: any, rejected: any) => {
           responseRejected = rejected
           return 0
         },
