@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import apiService from '../services/api'
-import type { UserStats } from '../types'
+import type { UserStats, LeaderboardEntry } from '../types'
 import './Dashboard.css'
 
 import type { User } from '../types'
@@ -10,12 +10,14 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [stats, setStats] = useState<UserStats | null>(null)
   const [user, setUser] = useState<User | null>(null)
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     loadDashboardData()
     loadUser()
+    loadLeaderboard()
   }, [])
 
   const loadDashboardData = async () => {
@@ -40,6 +42,29 @@ export default function Dashboard() {
       // ignore; user may be in localStorage
       const userStr = localStorage.getItem('user')
       if (userStr) setUser(JSON.parse(userStr))
+    }
+  }
+
+  const loadLeaderboard = async () => {
+    try {
+      const data = await apiService.getLeaderboard()
+      const arr = Array.isArray(data) ? data : []
+      // Normalize entries similar to Leaderboard page for consistent matching
+      const normalized: LeaderboardEntry[] = (arr as any[]).map((r, idx) => {
+        const rec = r && typeof r === 'object' ? (r as Record<string, any>) : {}
+        return {
+          userId: rec.userId ?? rec.id ?? rec.user?.id ?? idx,
+          name: rec.name ?? rec.user?.name ?? String(rec.email ?? rec.username ?? 'Unknown'),
+          totalPoints: Number(rec.totalPoints ?? rec.points ?? rec.total_points ?? 0),
+          totalCo2gSaved: Number(rec.totalCo2gSaved ?? rec.co2gSaved ?? rec.co2_saved ?? 0),
+          rank: Number(rec.rank ?? rec.position ?? idx + 1),
+        }
+      }).sort((a, b) => b.totalPoints - a.totalPoints)
+      // Reassign rank after sorting
+      normalized.forEach((e, i) => { e.rank = i + 1 })
+      setLeaderboard(normalized)
+    } catch (err) {
+      console.error('Failed to load leaderboard:', err)
     }
   }
 
@@ -91,6 +116,21 @@ export default function Dashboard() {
   }
 
   const maxWeeklyPoints = Math.max(...stats.weeklyProgress.map(d => d.points), 100)
+  
+  // Find user's actual rank and points from leaderboard
+  const matchesUser = (entry: LeaderboardEntry) => {
+    const userIdStr = user?.id != null ? String(user.id) : undefined
+    const entryIds = [entry.userId, (entry as any).id, (entry as any).user_id]
+    if (userIdStr && entryIds.some(v => v != null && String(v) === userIdStr)) return true
+    const userNames = [user?.name, (user as any)?.username, (user as any)?.email].filter(Boolean)
+    const entryNames = [entry.name, (entry as any).userName, (entry as any).username, (entry as any).email].filter(Boolean)
+    return userNames.some(n => entryNames.includes(n as string))
+  }
+  const sortedLeaderboard = leaderboard.slice().sort((a, b) => b.totalPoints - a.totalPoints)
+  const userLeaderboardEntry = sortedLeaderboard.find(matchesUser)
+  const userIndex = sortedLeaderboard.findIndex(matchesUser)
+  const actualRank = userIndex >= 0 ? userIndex + 1 : (userLeaderboardEntry?.rank || stats.rank)
+  const actualTotalPoints = userLeaderboardEntry?.totalPoints ?? stats.totalPoints
 
   return (
     <div className="dashboard-container">
@@ -101,9 +141,10 @@ export default function Dashboard() {
           <p className="subtitle">Keep making a difference, one action at a time!</p>
           {user && <p className="welcome">Signed in as <strong>{user.name}</strong></p>}
         </div>
-        <button onClick={handleLogout} className="btn-logout">
-          Logout
-        </button>
+        <div style={{display:'flex', gap:'0.75rem'}}>
+          <button onClick={() => navigate(-1)} className="btn-back">Back</button>
+          <button onClick={handleLogout} className="btn-logout">Logout</button>
+        </div>
       </header>
 
       {/* Stats Overview */}
@@ -112,23 +153,7 @@ export default function Dashboard() {
           <div className="stat-icon">Total</div>
           <div className="stat-content">
             <h3>Total Points</h3>
-            <p className="stat-value">{stats.totalPoints.toLocaleString()}</p>
-          </div>
-        </div>
-
-        <div className="stat-card stat-card-success">
-          <div className="stat-icon">Streak</div>
-          <div className="stat-content">
-            <h3>Current Streak</h3>
-            <p className="stat-value">{stats.currentStreak} days</p>
-          </div>
-        </div>
-
-        <div className="stat-card stat-card-info">
-          <div className="stat-icon">Week</div>
-          <div className="stat-content">
-            <h3>This Week</h3>
-            <p className="stat-value">{stats.weeklyPoints}</p>
+            <p className="stat-value">{actualTotalPoints.toLocaleString()}</p>
           </div>
         </div>
 
@@ -136,7 +161,7 @@ export default function Dashboard() {
           <div className="stat-icon">Rank</div>
           <div className="stat-content">
             <h3>Global Rank</h3>
-            <p className="stat-value">#{stats.rank}</p>
+            <p className="stat-value">#{actualRank}</p>
           </div>
         </div>
       </div>
@@ -186,6 +211,45 @@ export default function Dashboard() {
         )}
       </div>
 
+      {/* Global Leaderboard Preview */}
+      {leaderboard.length > 0 && (
+        <div className="card">
+          <h2>Global Leaderboard - Top 5</h2>
+          <div className="activities-list">
+            {leaderboard.slice(0, 5).map((entry, index) => {
+              const isCurrentUser = entry.userId === user?.id || entry.name === user?.name
+              return (
+                <div 
+                  key={entry.userId} 
+                  className={`activity-item ${isCurrentUser ? 'highlight' : ''}`}
+                  style={isCurrentUser ? { backgroundColor: '#e8f5e9', borderLeft: '4px solid #4caf50' } : {}}
+                >
+                  <div className="activity-content">
+                    <h4>
+                      #{entry.rank || index + 1} {entry.name || entry.userName || 'User'}
+                      {isCurrentUser && ' (You)'}
+                    </h4>
+                    {entry.totalCo2gSaved && (
+                      <p className="activity-category">
+                        CO₂ Saved: {Number(entry.totalCo2gSaved).toLocaleString()}g
+                      </p>
+                    )}
+                  </div>
+                  <div className="activity-points">{entry.totalPoints.toLocaleString()} pts</div>
+                </div>
+              )
+            })}
+          </div>
+          <button 
+            className="btn-primary" 
+            onClick={() => navigate('/leaderboard')}
+            style={{ marginTop: '1rem', width: '100%' }}
+          >
+            View Full Leaderboard
+          </button>
+        </div>
+      )}
+
       {/* Quick Actions */}
       <div className="quick-actions">
         <h2>Quick Actions</h2>
@@ -202,10 +266,7 @@ export default function Dashboard() {
             <span className="action-icon"></span>
             <span>Challenges</span>
           </button>
-          <button className="action-btn" onClick={() => navigate('/badges')}>
-            <span className="action-icon"></span>
-            <span>Badges</span>
-          </button>
+
         </div>
       </div>
     </div>
