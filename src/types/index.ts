@@ -100,6 +100,7 @@ export interface ActivityType {
   points: number
   category: ActivityCategory
   icon?: string
+  co2gSaved?: number
 }
 
 export interface ActivityLog {
@@ -124,6 +125,7 @@ export interface CreateActivityTypeData {
   points: number
   category: ActivityCategory
   icon?: string
+  co2gSaved?: number
 }
 
 export interface UpdateActivityTypeData {

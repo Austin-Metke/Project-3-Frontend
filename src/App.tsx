@@ -9,7 +9,6 @@ import Leaderboard from './pages/Leaderboard'
 import LogActivity from './pages/LogActivity'
 import './App.css'
 import { BackendStatusProvider } from './contexts/BackendStatusContext'
-import BackendStatusBanner from './components/BackendStatusBanner'
 
 // Protected Route component
 import { useEffect, useState } from 'react'
@@ -60,7 +59,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <BackendStatusProvider>
-      <BackendStatusBanner />
     <Routes>
       {/* Public Routes */}
       <Route path="/home" element={<Home />} />

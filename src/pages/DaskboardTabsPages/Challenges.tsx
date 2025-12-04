@@ -80,11 +80,7 @@ export default function Challenges() {
     }
   }
 
-  function handleLogout() {
-    localStorage.removeItem('authToken')
-    localStorage.removeItem('user')
-    navigate('/')
-  }
+  // Logout removed per request (retain function if needed later)
 
   const filteredChallenges = challenges.filter(challenge => {
     if (filter === 'all') return true
@@ -111,9 +107,6 @@ export default function Challenges() {
         <div className="header-actions">
           <button className="btn-back" onClick={() => navigate('/dashboard')}>
             Back to Dashboard
-          </button>
-          <button className="btn-logout" onClick={handleLogout}>
-            Logout
           </button>
         </div>
       </div>
