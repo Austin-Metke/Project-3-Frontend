@@ -34,17 +34,13 @@ export default function Login() {
       // Backend may return either a wrapped AuthResponse or the user object directly.
       const user = (result && (result.user ?? result))
       if (user) {
-        setNotification({ message: 'Login successful', type: 'success' })
-        // apiService stores user when present; delay navigation so user sees toast
-        setTimeout(() => navigate('/dashboard'), 600)
+        navigate('/dashboard')
         return
       }
 
-      // Otherwise check token fallback
       const token = result?.token ?? localStorage.getItem('authToken')
       if (token) {
-        setNotification({ message: 'Login successful', type: 'success' })
-        setTimeout(() => navigate('/dashboard'), 600)
+        navigate('/dashboard')
         return
       }
 
@@ -69,8 +65,7 @@ export default function Login() {
     try {
       setLoading(true)
       await googleAuthService.handleGoogleLogin(credentialResponse)
-      setNotification({ message: 'Google login successful', type: 'success' })
-      setTimeout(() => navigate('/dashboard'), 600)
+      navigate('/dashboard')
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Google login failed'
       setError(msg)
@@ -89,7 +84,6 @@ export default function Login() {
     <div className="auth-container">
       <div className="auth-card">
         <h1>Log in to EcoPoints</h1>
-        <p className="auth-subtitle">Sign in to track your eco-friendly journey</p>
 
         {error && (
           <div className="error-banner">

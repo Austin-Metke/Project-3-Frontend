@@ -1,24 +1,38 @@
-import { CredentialResponse } from '@react-oauth/google'
-import apiService from './api'
-
 export interface GoogleUser {
-  id: string
+  sub: string
   name: string
   email: string
   picture?: string
+  email_verified?: boolean
+  iat?: number
+  exp?: number
 }
 
 class GoogleAuthService {
-  async handleGoogleLogin(credentialResponse: CredentialResponse): Promise<void> {
+  async handleGoogleLogin(credentialResponse: any): Promise<void> {
     if (!credentialResponse.credential) {
       throw new Error('No credential received from Google')
     }
 
     try {
-      const response = await apiService.loginWithGoogle(credentialResponse.credential)
+      // Decode the Google JWT to get user info
+      const googleUser = this.decodeJWT(credentialResponse.credential)
       
-      localStorage.setItem('authToken', response.token)
-      localStorage.setItem('user', JSON.stringify(response.user))
+      if (!googleUser) {
+        throw new Error('Failed to decode Google credential')
+      }
+
+      // Store Google credential as auth token
+      localStorage.setItem('authToken', credentialResponse.credential)
+      
+      // Store user info from Google
+      const user = {
+        id: googleUser.sub,
+        name: googleUser.name,
+        email: googleUser.email,
+        picture: googleUser.picture
+      }
+      localStorage.setItem('user', JSON.stringify(user))
     } catch (error) {
       console.error('Google login error:', error)
       throw error

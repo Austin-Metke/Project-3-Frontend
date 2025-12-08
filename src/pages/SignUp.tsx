@@ -43,8 +43,7 @@ export default function SignUp() {
       // If backend returns a user object without a token, attempt to log in automatically
       const token = result?.token ?? localStorage.getItem('authToken')
       if (token) {
-        setNotification({ message: 'Account created', type: 'success' })
-        setTimeout(() => navigate('/dashboard'), 600)
+        navigate('/dashboard')
         return
       }
 
@@ -54,14 +53,11 @@ export default function SignUp() {
           const loginRes = await apiService.login({ name, passwordHash: password } as any)
           const loginToken = loginRes?.token ?? localStorage.getItem('authToken')
           if (loginToken || loginRes?.user) {
-            setNotification({ message: 'Account created and signed in', type: 'success' })
-            setTimeout(() => navigate('/dashboard'), 600)
+            navigate('/dashboard')
             return
           }
         } catch (loginErr) {
-          // If auto-login fails, still treat signup as success but inform user to sign in
-          setNotification({ message: 'Account created — please sign in', type: 'success' })
-          setTimeout(() => navigate('/login'), 800)
+          navigate('/login')
           return
         }
       }
@@ -76,17 +72,33 @@ export default function SignUp() {
     }
   }
 
+  async function handleGoogleSuccess(credentialResponse: any) {
+    try {
+      setLoading(true)
+      await googleAuthService.handleGoogleLogin(credentialResponse)
+      navigate('/dashboard')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Google sign up failed'
+      setError(msg)
+      setNotification({ message: msg, type: 'error' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleGoogleError() {
+    setError('Google sign up failed')
+    setNotification({ message: 'Google sign up failed', type: 'error' })
+  }
+
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h1>🌱 Join EcoPoints</h1>
-        <p className="auth-subtitle">Create your account and start making an impact</p>
-
-        
+        <h1>Join EcoPoints</h1>
 
         {error && (
           <div className="error-banner">
-            ⚠️ {error}
+            {error}
           </div>
         )}
 
@@ -157,7 +169,15 @@ export default function SignUp() {
             <span>OR</span>
           </div>
 
-          
+          <div className="google-login-wrapper">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              text="signup_with"
+              shape="rectangular"
+              width="280"
+            />
+          </div>
 
           <div className="auth-footer">
             <p>
