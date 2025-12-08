@@ -21,31 +21,26 @@ export default function Login() {
     setLoading(true)
 
     try {
-      // Backend expects { name, passwordHash }
-      const result = await apiService.login({ name, passwordHash: password } as any)
+      // Heroku backend expects { name, email, password }.
+      // Since email input is removed, map name to both fields for compatibility.
+      const result = await apiService.login({ name, email: name, password } as any)
 
       if (import.meta.env.DEV) {
         try {
           // eslint-disable-next-line no-console
           console.debug('[Login] login result:', result, 'localStorage user=', localStorage.getItem('user'), 'token=', localStorage.getItem('authToken'))
-        } catch (e) {}
+        } catch {}
       }
 
-      // Backend may return either a wrapped AuthResponse or the user object directly.
-      const user = (result && (result.user ?? result))
-      if (user) {
-        navigate('/dashboard')
-        return
-      }
-
+      const user = result?.user ?? result
       const token = result?.token ?? localStorage.getItem('authToken')
-      if (token) {
-        navigate('/dashboard')
-        return
-      }
 
-      setError('Login failed: unexpected server response. Check backend behavior.')
-      setNotification({ message: 'Login failed', type: 'error' })
+      if (user || token) {
+        navigate('/dashboard')
+      } else {
+        setError('Login failed: unexpected server response.')
+        setNotification({ message: 'Login failed', type: 'error' })
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Login failed. Please try again.'
       setError(msg)
@@ -90,20 +85,20 @@ export default function Login() {
             {error}
           </div>
         )}
-
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="name">Username</label>
+            <label htmlFor="name">Name</label>
             <input
               id="name"
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="your username"
+              placeholder="Username"
               required
               disabled={loading}
             />
           </div>
+
 
           <div className="form-group">
             <label htmlFor="password">Password</label>

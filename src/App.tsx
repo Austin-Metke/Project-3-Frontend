@@ -10,7 +10,6 @@ import Leaderboard from './pages/Leaderboard'
 import LogActivity from './pages/LogActivity'
 import './App.css'
 import { BackendStatusProvider } from './contexts/BackendStatusContext'
-import BackendStatusBanner from './components/BackendStatusBanner'
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
@@ -64,36 +63,35 @@ function App() {
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
       <BackendStatusProvider>
-        <BackendStatusBanner />
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/home" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<SignUp />} />
-        <Route path="/auth/github/callback" element={<GitHubCallback />} />
-      
-  {/* Removed mock dashboard - app uses backend-driven /dashboard only */}
-      <Route path="/challenges" element={<Challenges />} />
-  <Route path="/log-activity" element={<LogActivity />} />
-    <Route path="/leaderboard" element={<Leaderboard />} />
-      <Route path="/badges" element={<Badges />} />
-      
-      {/* Protected Routes */}
-      <Route 
-        path="/dashboard" 
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        } 
-      />
-      
-        {/* Redirect root to dashboard */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        
-        {/* Catch all - redirect to dashboard */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/home" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<SignUp />} />
+          <Route path="/auth/github/callback" element={<GitHubCallback />} />
+          
+          {/* Removed mock dashboard - app uses backend-driven /dashboard only */}
+          <Route path="/challenges" element={<Challenges />} />
+          <Route path="/log-activity" element={<LogActivity />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/badges" element={<Badges />} />
+          
+          {/* Protected Routes */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Redirect root to dashboard */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          
+          {/* Catch all - redirect to dashboard */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
       </BackendStatusProvider>
     </GoogleOAuthProvider>
   )

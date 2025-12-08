@@ -54,10 +54,13 @@ export default function LogActivity() {
   async function handleCreate(e?: React.FormEvent) {
     if (e) e.preventDefault()
     if (!newName || !newPoints) return setMessage('Name and points are required')
+    const co2Num = newCo2 === '' ? 0 : Number(newCo2)
+    if (Number.isNaN(co2Num)) return setMessage('CO2 saved must be a number')
     setCreating(true)
     setMessage(null)
     try {
-      await apiService.createActivityType({ name: newName, points: Number(newPoints), description: '', category: 'Other' })
+      const co2Num = newCo2 === '' ? 0 : Number(newCo2)
+      await apiService.createActivityType({ name: newName, points: Number(newPoints), description: '', category: 'Other', co2gSaved: co2Num })
       setMessage(`Created activity "${newName}"`)
       // reset
       setNewName('')
@@ -119,7 +122,7 @@ export default function LogActivity() {
             <form onSubmit={handleCreate} style={{ marginTop: 8 }}>
               <input placeholder="Name" value={newName} onChange={e => setNewName(e.target.value)} />
               <input placeholder="Points" type="number" value={newPoints as any} onChange={e => setNewPoints(e.target.value === '' ? '' : Number(e.target.value))} />
-              <input placeholder="CO2 g saved" value={newCo2 as any} onChange={e => setNewCo2(e.target.value)} />
+              <input placeholder="CO2 g saved (grams)" value={newCo2 as any} onChange={e => setNewCo2(e.target.value)} />
               <button className="btn-primary" type="submit" disabled={creating}>{creating ? 'Creating...' : 'Create'}</button>
             </form>
           )}

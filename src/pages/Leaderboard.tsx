@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import apiService from '../services/api'
 import type { LeaderboardEntry } from '../types'
 import './Leaderboard.css'
+import './DaskboardTabsPages/Challenges.css'
 
 export default function Leaderboard() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([])
@@ -73,57 +74,59 @@ export default function Leaderboard() {
   }
 
   return (
-    <div className="leaderboard-container">
-      <div className="leaderboard-header">
-        <h1>🏅 Leaderboard</h1>
-        <div className="controls">
-          <label>
-            Range:
-            <select value={range} onChange={(e) => setRange(e.target.value as any)}>
-              <option value="WEEK">This Week</option>
-              <option value="MONTH">This Month</option>
-              <option value="ALL">All Time</option>
-            </select>
-          </label>
+    <div className="challenges-container">
+      <div className="challenges-header">
+        <div>
+          <h1>Leaderboard</h1>
+          <p className="subtitle">Top contributors making an impact</p>
+        </div>
+        <div className="header-actions" style={{gap:'0.5rem'}}>
+          <button className="btn-back" onClick={() => window.history.length > 1 ? window.history.back() : (location.href = '/dashboard')}>
+            Back
+          </button>
+          <select value={range} onChange={(e) => setRange(e.target.value as any)} className="btn-small">
+            <option value="WEEK">This Week</option>
+            <option value="MONTH">This Month</option>
+            <option value="ALL">All Time</option>
+          </select>
         </div>
       </div>
 
       {loading ? (
-        <div className="loading">
+        <div className="loading-state">
           <div className="spinner"></div>
           <p>Loading leaderboard...</p>
         </div>
       ) : error ? (
         <div className="error-card">
-          <h3>Unable to load leaderboard</h3>
           <p>{error}</p>
         </div>
+      ) : entries.length === 0 ? (
+        <div className="empty-state"><p>No leaderboard entries found</p></div>
       ) : (
-        <div className="leaderboard-list">
-          {entries.length === 0 ? (
-            <div className="empty-state">No leaderboard entries found</div>
-          ) : (
-            <table className="leaderboard-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>User</th>
-                  <th>Points</th>
-                  <th>CO2 saved (g)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entries.map((e, i) => (
-                  <tr key={String(e.userId)}>
-                    <td>{i + 1}</td>
-                    <td>{e.name ?? `User ${e.userId}`}</td>
-                    <td>{e.totalPoints}</td>
-                    <td>{Number(e.totalCo2gSaved ?? 0).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+        <div className="challenges-list">
+          {entries.map((e, i) => (
+            <div key={String(e.userId)} className="challenge-card active">
+              <div className="challenge-header">
+                <div className="challenge-title-section">
+                  <h3>#{i + 1} {e.name ?? `User ${e.userId}`}</h3>
+                </div>
+                <div className="challenge-points">
+                  <span className="points-value">{e.totalPoints}</span>
+                  <span className="points-label">pts</span>
+                </div>
+              </div>
+              <p className="challenge-description">CO₂ Saved: {Number(e.totalCo2gSaved ?? 0).toLocaleString()} g</p>
+              <div className="progress-section">
+                <div className="progress-info">
+                  <span className="progress-text">Rank {i + 1}</span>
+                </div>
+                <div className="progress-bar">
+                  <div className="progress-fill" style={{ width: '100%' }}></div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
