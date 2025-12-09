@@ -22,3 +22,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+mobile/.expo/devices.json
+mobile/.expo/README.md
