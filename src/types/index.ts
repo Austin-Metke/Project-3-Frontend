@@ -29,6 +29,7 @@ export interface User {
   email?: string
   username?: string
   googleID?: string | null
+  avatar?: string
   createdAt?: string
   updatedAt?: string
   totalPoints?: number

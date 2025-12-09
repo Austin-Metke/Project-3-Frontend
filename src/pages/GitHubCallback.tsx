@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import githubAuthService from '../services/githubAuth'
 import './Auth.css'
 
 export default function GitHubCallback() {
@@ -7,14 +8,23 @@ export default function GitHubCallback() {
   const [searchParams] = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const handledRef = useRef(false)
 
   useEffect(() => {
+    const code = searchParams.get('code')
+    const state = searchParams.get('state')
+    
+    // Only run once per unique code
+    if (handledRef.current || !code) return
+    handledRef.current = true
+
     let mounted = true
     ;(async () => {
-      const code = searchParams.get('code')
-      const state = searchParams.get('state')
-      const token = searchParams.get('token')
       const errorParam = searchParams.get('error')
+
+      if (import.meta.env.DEV) {
+        console.log('[GitHubCallback] Callback triggered with code:', code?.slice(0, 10), 'state:', state?.slice(0, 10))
+      }
 
       // Check for errors from GitHub
       if (errorParam) {
@@ -24,31 +34,32 @@ export default function GitHubCallback() {
         return
       }
 
-      // Backend-managed OAuth may redirect with a token
-      if (token) {
-        localStorage.setItem('authToken', token)
-        // Optionally fetch user profile here when backend exposes /auth/me
-        navigate('/dashboard')
-        return
-      }
-
-      if (!code || !state) {
+      if (!state) {
         if (!mounted) return
-        setError('Invalid callback parameters')
+        setError('Invalid callback parameters: missing state')
         setLoading(false)
         return
       }
 
       try {
-        // GitHub OAuth exchange - backend doesn't have this endpoint yet
-        // For now, redirect to login with an error message
-        setError('GitHub OAuth is not yet implemented on the backend')
-        setTimeout(() => navigate('/login'), 3000)
+        // Exchange the code for user profile using githubAuthService
+        await githubAuthService.handleCallback(code, state)
+        
+        if (import.meta.env.DEV) {
+          console.log('[GitHubCallback] GitHub authentication successful')
+          console.log('[GitHubCallback] localStorage user:', localStorage.getItem('user'))
+          console.log('[GitHubCallback] Navigating to /dashboard...')
+        }
+        
+        // Navigate immediately without checking mounted state
+        // (navigation will handle cleanup)
+        navigate('/dashboard', { replace: true })
       } catch (err) {
         if (!mounted) return
-        setError(err instanceof Error ? err.message : 'Authentication failed')
-      } finally {
-        if (mounted) setLoading(false)
+        const msg = err instanceof Error ? err.message : 'Authentication failed'
+        setError(msg)
+        setLoading(false)
+        console.error('[GitHubCallback] Error:', msg, err)
       }
     })()
 
