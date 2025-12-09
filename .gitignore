@@ -22,5 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-mobile/.expo/devices.json
-mobile/.expo/README.md
+
+# Local Netlify folder
+.netlify

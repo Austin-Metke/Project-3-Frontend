@@ -1,0 +1,16 @@
+[build]
+command = "npm run build"
+functions = "netlify/functions"
+publish = "dist"
+
+[dev]
+command = "npm run dev"
+port = 9999
+
+[env]
+[env.development]
+GITHUB_CLIENT_ID = "Iv23liFPKDD0uG7eksNT"
+GITHUB_CLIENT_SECRET = "417e96f03c86e2e25e7a0b59b1ec251278d9bb3b"
+REDIRECT_URI = "http://localhost:5173/auth/github/callback"
+ALLOWED_ORIGIN = "http://localhost:5173"
+

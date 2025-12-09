@@ -62,6 +62,111 @@ class ApiService {
     )
   }
 
+  /**
+   * Exchange GitHub OAuth code for user info.
+   * Prefers Netlify function when VITE_GITHUB_OAUTH_URL is set.
+   */
+  async exchangeGitHubCode(code: string): Promise<any> {
+    const netlifyUrl = import.meta.env.VITE_GITHUB_OAUTH_URL
+    if (netlifyUrl) {
+      const resp = await fetch(netlifyUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code }),
+      })
+      if (!resp.ok) {
+        const body = await resp.text()
+        console.error('[api.exchangeGitHubCode] Failed:', resp.status, body)
+        throw new Error(`GitHub OAuth function failed: ${resp.status}`)
+      }
+      const result = await resp.json()
+      if (import.meta.env.DEV) {
+        console.log('[api.exchangeGitHubCode] Success:', result)
+      }
+      return result
+    }
+
+    // Fallback to backend endpoint if provided by the API
+    const response = await this.api.post('/auth/oauth/github', { code })
+    return (response.data as any)?.data ?? response.data
+  }
+
+  /**
+   * Upsert a user in the backend using GitHub profile data (idempotent-ish):
+   * - Try /auth/register with a deterministic password
+   * - On conflict, fetch all users and match by email or login to reuse backend user
+   * - Always returns a backend user object when possible
+   */
+  async upsertUserFromGitHub(githubUser: any): Promise<AuthResponse> {
+    const payload = {
+      name: githubUser.login || githubUser.name || 'GitHub User',
+      email: githubUser.email || `${githubUser.login}@users.noreply.github.com`,
+      avatar: githubUser.avatar || githubUser.avatar_url,
+      password: `github-oauth-${githubUser.id}`, // deterministic to allow repeat register
+    }
+
+    const toUser = (raw: any): User => ({
+      id: raw?.id ?? githubUser.id,
+      name: raw?.name ?? payload.name,
+      email: raw?.email ?? payload.email,
+      avatar: raw?.avatar ?? payload.avatar,
+    })
+
+    // 1) Try register
+    try {
+      const resp = await this.api.post('/auth/register', {
+        name: payload.name,
+        email: payload.email,
+        password: payload.password,
+      })
+      const raw = (resp.data as any)?.data ?? resp.data
+      const user = toUser(raw)
+      localStorage.setItem('user', JSON.stringify(user))
+      return { user, token: '' }
+    } catch (err: any) {
+      if (import.meta.env.DEV) {
+        console.debug('[api.upsertUserFromGitHub] register failed:', err?.response?.status, err?.response?.data)
+      }
+      // continue to lookup
+    }
+
+    // 2) On conflict/exists: list users and pick match
+    try {
+      const resp = await this.api.get('/auth')
+      const list = ((resp.data as any)?._embedded?.userDtoList) || (resp.data as any)?.data || resp.data
+      if (Array.isArray(list)) {
+        const found = list.find((u: any) => {
+          return (
+            (u.email && u.email.toLowerCase() === payload.email.toLowerCase()) ||
+            (u.name && u.name.toLowerCase() === payload.name.toLowerCase())
+          )
+        })
+        if (found) {
+          const user = toUser(found)
+          localStorage.setItem('user', JSON.stringify(user))
+          return { user, token: '' }
+        }
+      }
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.debug('[api.upsertUserFromGitHub] lookup failed', err)
+      }
+    }
+
+    // 3) Fallback: GitHub data
+    const localUser: User = {
+      id: githubUser.id,
+      name: payload.name,
+      email: payload.email,
+      avatar: payload.avatar,
+    }
+    localStorage.setItem('user', JSON.stringify(localUser))
+    return { user: localUser, token: '' }
+  }
+
+  // Helper method to handle errors
   private handleError(error: unknown): never {
     if (axios.isAxiosError(error)) {
       const apiError = error.response?.data as ApiError | undefined
@@ -261,7 +366,7 @@ class ApiService {
           const allLogs = await this.getAllActivityLogs()
           
           const activities = currentUserId 
-            ? allLogs.filter((a: any) => a.userId === currentUserId || a.user?.id === currentUserId)
+            ? allLogs.filter((a: any) => String(a.userId) === String(currentUserId) || String(a.user?.id) === String(currentUserId))
             : allLogs
 
           const now = Date.now()
@@ -415,19 +520,27 @@ class ApiService {
       const response = await this.api.post<ApiResponse<ActivityLog>>('/activity-logs', payload)
       // Backend may return object directly or wrapped in { data: {...} }
       const result = response.data.data || response.data as any
-      // Normalize response
-      if (result.activityId) {
-        return {
-          id: result.activityId,
-          userId: result.user?.id || result.userId,
-          activityTypeId: result.activityType?.id || result.activityTypeId,
-          activityType: result.activityType,
-          user: result.user,
-          points: result.activityType?.points || result.points || 0,
-          category: result.category || 'Other',
-          createdAt: result.occurredAt || result.createdAt,
-          description: result.description
+      // Normalize response when backend returns camel/snake mixed fields
+      const raw = result as any
+      if (raw.activityId) {
+        const normalized = {
+          id: raw.activityId,
+          userId: raw.user?.id || raw.userId,
+          activityTypeId: raw.activityType?.id || raw.activityTypeId,
+          activityType: raw.activityType,
+          user: raw.user,
+          points: raw.activityType?.points || raw.points || 0,
+          category: raw.category || 'Other',
+          createdAt: raw.occurredAt || raw.createdAt,
+          description: raw.description
         } as any
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('activity-logged', { detail: normalized }))
+        }
+        return normalized
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('activity-logged', { detail: result }))
       }
       return result
     } catch (error) {
@@ -473,7 +586,14 @@ class ApiService {
       ;(payload as any).co2g_saved = co2
       const response = await this.api.post<ApiResponse<ActivityType>>('/activities', payload)
       // Backend may return object directly or wrapped in { data: {...} }
-      return response.data.data || response.data as any
+      const created = response.data.data || response.data as any
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('activity-type-created', { detail: created }))
+          localStorage.setItem('custom_activity_created', 'true')
+        }
+      } catch {}
+      return created
     } catch (error) {
       this.handleError(error)
     }
