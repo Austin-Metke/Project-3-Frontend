@@ -299,6 +299,108 @@
   font-size: 1.1rem;
 }
 
+/* Dev create panel */
+.dev-create-wrapper {
+  margin: 16px 0 28px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+.dev-create-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dev-chip {
+  display: inline-block;
+  margin: 0 0 4px;
+  padding: 6px 12px;
+  background: #e6f7ee;
+  color: #0f5132;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.dev-sub {
+  margin: 0;
+  color: #3c3c3c;
+  font-size: 0.95rem;
+}
+
+.dev-create-card {
+  margin-top: 14px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #e0f2e9;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(16, 185, 129, 0.08);
+  display: grid;
+  gap: 14px;
+}
+
+.dev-create-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dev-label {
+  display: grid;
+  gap: 6px;
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: 0.95rem;
+}
+
+.dev-label input,
+.dev-label select {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 1rem;
+  background: #f9fafb;
+}
+
+.dev-label input[readonly] {
+  background: #f4f7f5;
+  color: #4b5563;
+}
+
+.dev-pill {
+  padding: 8px 12px;
+  background: #ecfdf3;
+  color: #0f5132;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border: 1px solid #c7f3dc;
+}
+
+.dev-create-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.dev-create-hint {
+  margin: 0;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.dev-create-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .challenges-container {

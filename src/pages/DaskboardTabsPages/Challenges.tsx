@@ -21,15 +21,72 @@ export default function Challenges() {
   const [challenges, setChallenges] = useState<Challenge[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all')
-  const [showRaw, setShowRaw] = useState(false)
-  const [rawPayload, setRawPayload] = useState<unknown>(null)
 
   useEffect(() => {
     fetchChallenges()
   }, [])
 
+  useEffect(() => {
+    const handler = () => fetchChallenges()
+    window.addEventListener('activity-logged', handler)
+    return () => window.removeEventListener('activity-logged', handler)
+  }, [])
+
+  useEffect(() => {
+    const handler = () => fetchChallenges()
+    window.addEventListener('activity-type-created', handler)
+    return () => window.removeEventListener('activity-type-created', handler)
+  }, [])
+
+  const getUserActivityCount = async () => {
+    try {
+      const userStr = localStorage.getItem('user')
+      const userId = userStr ? JSON.parse(userStr).id : undefined
+      if (!userId) return 0
+      const logs = await apiService.getAllActivityLogs()
+      if (!Array.isArray(logs)) return 0
+      const userIdStr = String(userId)
+      return logs.filter((log: any) => {
+        const lid = log?.userId ?? log?.user?.id
+        return lid != null && String(lid) === userIdStr
+      }).length
+    } catch (err) {
+      console.error('Failed to compute activity count for challenges', err)
+      return 0
+    }
+  }
+
+  const buildFallbackChallenges = async (): Promise<Challenge[]> => {
+    const activityCount = await getUserActivityCount()
+    const customCreated = localStorage.getItem('custom_activity_created') === 'true'
+    const milestones = [
+      { id: 'milestone-1', title: 'Log 1 Activity', description: 'Start your journey with your first logged activity.', points: 25, target: 1 },
+      { id: 'milestone-3', title: 'Log 3 Activities', description: 'Build a habit with three logged activities.', points: 75, target: 3 },
+      { id: 'milestone-5', title: 'Log 5 Activities', description: 'Stay consistent and reach five total logs.', points: 150, target: 5 },
+      { id: 'milestone-10', title: 'Log 10 Activities', description: 'Hit double-digits to become an eco pro.', points: 350, target: 10 },
+      { id: 'milestone-20', title: 'Log 20 Activities', description: 'Serious streak — twenty total activities!', points: 750, target: 20 },
+      { id: 'create-custom-activity', title: 'Create a Custom Activity', description: 'Add your own activity type on the Log Activity page.', points: 200, target: 1 },
+    ]
+
+    return milestones.map(m => {
+      const progressSource = m.id === 'create-custom-activity' ? (customCreated ? 1 : 0) : activityCount
+      const progress = Math.min(progressSource, m.target)
+      const status: Challenge['status'] = progress >= m.target ? 'completed' : 'active'
+      return {
+        id: m.id,
+        title: m.title,
+        description: m.description,
+        points: m.points,
+        progress,
+        target: m.target,
+        status,
+      }
+    })
+  }
+
   async function fetchChallenges() {
     setLoading(true)
+    let mapped: Challenge[] = []
     try {
       // Prefer backend challenges if available
       const userStr = localStorage.getItem('user')
@@ -53,11 +110,8 @@ export default function Challenges() {
           console.log('[Challenges] Global challenges result:', backendChallenges)
         }
       }
-  // Capture raw payload for DEV debugging
-  setRawPayload(backendChallenges)
-
   // Normalize backend shape -> our Challenge interface if needed
-  const mapped = (Array.isArray(backendChallenges) ? backendChallenges : []).map((ch) => {
+  mapped = (Array.isArray(backendChallenges) ? backendChallenges : []).map((ch) => {
         const record = (ch && typeof ch === 'object') ? (ch as Record<string, unknown>) : {}
         const id = String(record.challengeID ?? record.id ?? record.ChallengeID ?? Math.random())
         const title = String(record.name ?? record.title ?? 'Untitled Challenge')
@@ -70,12 +124,21 @@ export default function Challenges() {
         const status: Challenge['status'] = isCompleted ? 'completed' : 'active'
         return { id, title, description, points, progress, target, status, assignedUser }
       }) as Challenge[]
-      setChallenges(mapped)
     } catch (err) {
       // Do not fall back to mock — surface error so developer knows backend is missing
       console.error('Backend challenges unavailable:', err)
-      setChallenges([])
+      mapped = []
     } finally {
+      const fallback = await buildFallbackChallenges()
+      // Merge fallback milestones with any backend-provided challenges, avoiding duplicate IDs
+      const mergedIds = new Set<string>(mapped.map(m => String(m.id)))
+      const merged = [...mapped]
+      fallback.forEach(f => {
+        if (!mergedIds.has(String(f.id))) {
+          merged.push(f)
+        }
+      })
+      setChallenges(merged)
       setLoading(false)
     }
   }
@@ -93,12 +156,6 @@ export default function Challenges() {
 
   return (
     <div className="challenges-container">
-      {import.meta.env.DEV && showRaw && (
-        <div className="raw-response-panel">
-          <h4>Raw /challenges payload</h4>
-          <pre>{JSON.stringify(rawPayload, null, 2)}</pre>
-        </div>
-      )}
       <div className="challenges-header">
         <div>
           <h1>Challenges</h1>
@@ -132,10 +189,6 @@ export default function Challenges() {
         >
           Completed ({challenges.filter(c => c.status === 'completed').length})
         </button>
-        <button onClick={() => fetchChallenges()} className="btn-small">Reload</button>
-        {import.meta.env.DEV && (
-          <button className="btn-small" onClick={() => setShowRaw(s => !s)}>{showRaw ? 'Hide raw' : 'Show raw'}</button>
-        )}
       </div>
 
       {loading ? (
@@ -169,9 +222,6 @@ export default function Challenges() {
                 </div>
 
                 <p className="challenge-description">{challenge.description}</p>
-                {import.meta.env.DEV && showRaw && (
-                  <pre className="raw-json">{JSON.stringify(challenge, null, 2)}</pre>
-                )}
                 <div className="progress-section">
                   <div className="progress-info">
                     <span className="progress-text">
