@@ -434,7 +434,7 @@ class ApiService {
       const result = response.data.data || response.data as any
       // Normalize response
       if (result.activityId) {
-        return {
+        const normalized = {
           id: result.activityId,
           userId: result.user?.id || result.userId,
           activityTypeId: result.activityType?.id || result.activityTypeId,
@@ -445,6 +445,13 @@ class ApiService {
           createdAt: result.occurredAt || result.createdAt,
           description: result.description
         } as any
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('activity-logged', { detail: normalized }))
+        }
+        return normalized
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('activity-logged', { detail: result }))
       }
       return result
     } catch (error) {
@@ -490,7 +497,14 @@ class ApiService {
       ;(payload as any).co2g_saved = co2
       const response = await this.api.post<ApiResponse<ActivityType>>('/activities', payload)
       // Backend may return object directly or wrapped in { data: {...} }
-      return response.data.data || response.data as any
+      const created = response.data.data || response.data as any
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('activity-type-created', { detail: created }))
+          localStorage.setItem('custom_activity_created', 'true')
+        }
+      } catch {}
+      return created
     } catch (error) {
       this.handleError(error)
     }
