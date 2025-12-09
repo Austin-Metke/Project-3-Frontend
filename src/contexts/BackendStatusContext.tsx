@@ -11,8 +11,6 @@ export function BackendStatusProvider({ children }: { children: React.ReactNode 
     let mounted = true
     ;(async () => {
       try {
-        // Try a lightweight unauthenticated endpoint to detect backend availability.
-        // Prefer GET /auth (user list) which most backends expose for discovery.
         const base = (import.meta.env.VITE_API_BASE_URL as string) || '/api'
         const url = `${base.replace(/\/$/, '')}/auth`
         const resp = await fetch(url, { method: 'GET' })

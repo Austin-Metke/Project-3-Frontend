@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { GoogleLogin } from '@react-oauth/google'
 import apiService from '../services/api'
+import googleAuthService from '../services/googleAuth'
 import './Auth.css'
 import Notification from '../components/Notification'
 
@@ -35,23 +37,15 @@ export default function SignUp() {
     setLoading(true)
 
     try {
-      // Heroku backend expects 'password' field for registration
       const result = await apiService.signUp({ name, email, password } as any)
 
-      // Check if we got a valid user object back
-      // API returns { user: {...}, token: '' }
       if (result?.user?.id) {
-        // User is already stored in localStorage by apiService
-        setNotification({ message: 'Account created successfully!', type: 'success' })
-        setTimeout(() => navigate('/dashboard'), 800)
+        navigate('/dashboard')
         return
       }
 
-      // If we get here, something unexpected happened but account might still be created
-      setNotification({ message: 'Account created — please sign in', type: 'success' })
-      setTimeout(() => navigate('/login'), 1000)
+      navigate('/login')
     } catch (err) {
-      // Extract best possible backend error message
       let msg = 'Sign up failed. Please try again.'
       try {
         const anyErr = err as any
@@ -73,27 +67,33 @@ export default function SignUp() {
     }
   }
 
+  async function handleGoogleSuccess(credentialResponse: any) {
+    try {
+      setLoading(true)
+      await googleAuthService.handleGoogleLogin(credentialResponse)
+      navigate('/dashboard')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Google sign up failed'
+      setError(msg)
+      setNotification({ message: msg, type: 'error' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleGoogleError() {
+    setError('Google sign up failed')
+    setNotification({ message: 'Google sign up failed', type: 'error' })
+  }
+
   return (
     <div className="auth-container">
       <div className="auth-card">
         <h1>Join EcoPoints</h1>
-        <p className="auth-subtitle">Create your account and start making an impact</p>
-
-        <div className="auth-nav">
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => navigate('/login')}
-          >
-            ← Back to Login
-          </button>
-        </div>
-
-        
 
         {error && (
           <div className="error-banner">
-            Warning: {error}
+            {error}
           </div>
         )}
 
@@ -164,7 +164,15 @@ export default function SignUp() {
             <span>OR</span>
           </div>
 
-          
+          <div className="google-login-wrapper">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              text="signup_with"
+              shape="rectangular"
+              width="280"
+            />
+          </div>
 
           <div className="auth-footer">
             <p>

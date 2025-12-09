@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { GoogleLogin } from '@react-oauth/google'
 import apiService from '../services/api'
 import githubAuthService from '../services/githubAuth'
+import googleAuthService from '../services/googleAuth'
 import './Auth.css'
 import Notification from '../components/Notification'
 
@@ -19,8 +21,6 @@ export default function Login() {
     setLoading(true)
 
     try {
-      // Heroku backend expects { name, email, password }.
-      // Since email input is removed, map name to both fields for compatibility.
       const result = await apiService.login({ name, email: name, password } as any)
 
       if (import.meta.env.DEV) {
@@ -34,10 +34,9 @@ export default function Login() {
       const token = result?.token ?? localStorage.getItem('authToken')
 
       if (user || token) {
-        setNotification({ message: 'Login successful', type: 'success' })
-        setTimeout(() => navigate('/dashboard'), 600)
+        navigate('/dashboard')
       } else {
-        setError('Login failed: unexpected server response. Check backend behavior.')
+        setError('Login failed: unexpected server response.')
         setNotification({ message: 'Login failed', type: 'error' })
       }
     } catch (err) {
@@ -54,11 +53,30 @@ export default function Login() {
     githubAuthService.initiateLogin()
   }
 
+  // Google OAuth login
+  async function handleGoogleSuccess(credentialResponse: any) {
+    try {
+      setLoading(true)
+      await googleAuthService.handleGoogleLogin(credentialResponse)
+      navigate('/dashboard')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Google login failed'
+      setError(msg)
+      setNotification({ message: msg, type: 'error' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleGoogleError() {
+    setError('Google login failed')
+    setNotification({ message: 'Google login failed', type: 'error' })
+  }
+
   return (
     <div className="auth-container">
       <div className="auth-card">
         <h1>Log in to EcoPoints</h1>
-        <p className="auth-subtitle">Sign in to track your eco-friendly journey</p>
 
         {error && (
           <div className="error-banner">
@@ -116,7 +134,13 @@ export default function Login() {
             Sign in with GitHub
           </button>
 
-          
+          <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center' }}>
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              useOneTap
+            />
+          </div>
 
           <div className="auth-footer">
             <p>

@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import apiService from '../../services/api'
 import './Challenges.css'
 
-// Challenges now load from backend; mock data removed.
-
 interface Challenge {
   id: string
   title: string
@@ -88,22 +86,17 @@ export default function Challenges() {
     setLoading(true)
     let mapped: Challenge[] = []
     try {
-      // Prefer backend challenges if available
       const userStr = localStorage.getItem('user')
       const userId = userStr ? JSON.parse(userStr).id : undefined
       if (import.meta.env.DEV) {
         console.log('[Challenges] Fetching challenges for userId:', userId)
       }
-      // Try user-specific challenges first (if logged in). apiService.getChallenges is tolerant and will
-      // try multiple endpoints including /challenges/user/{id} and /challenges.
       let backendChallenges = await apiService.getChallenges(userId)
 
       if (import.meta.env.DEV) {
         console.log('[Challenges] User-specific challenges result:', backendChallenges)
       }
 
-      // If user-specific call returned nothing and we have a user, try the global /challenges endpoint
-      // (some backends may only expose global challenges)
       if ((!backendChallenges || (Array.isArray(backendChallenges) && backendChallenges.length === 0)) && userId) {
         backendChallenges = await apiService.getChallenges()
         if (import.meta.env.DEV) {
@@ -125,7 +118,6 @@ export default function Challenges() {
         return { id, title, description, points, progress, target, status, assignedUser }
       }) as Challenge[]
     } catch (err) {
-      // Do not fall back to mock — surface error so developer knows backend is missing
       console.error('Backend challenges unavailable:', err)
       mapped = []
     } finally {

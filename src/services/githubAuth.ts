@@ -219,7 +219,6 @@ class GitHubAuthService {
         return mockUser
       }
 
-      // Try to get primary email
       let email: string | null = null
       try {
         const emailsResp = await fetch('https://api.github.com/user/emails', {
@@ -242,7 +241,6 @@ class GitHubAuthService {
           }
         }
       } catch {
-        // Non-fatal if emails endpoint fails
         email = null
       }
 

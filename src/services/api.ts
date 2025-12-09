@@ -175,10 +175,8 @@ class ApiService {
     throw error
   }
 
-  // Authentication endpoints
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      // Adaptive payload to match backend: prefers { name, email, password }
       const identifier = (credentials as any).username ?? credentials.name ?? credentials.email
       const password = credentials.password ?? credentials.passwordHash
       const payload: any = {
@@ -200,15 +198,11 @@ class ApiService {
       const dataUnknown: unknown = hasData(raw) ? (raw as { data: unknown }).data : raw
       const dataRecord = (dataUnknown && typeof dataUnknown === 'object') ? (dataUnknown as Record<string, unknown>) : {}
       const token = (dataRecord.token as string) || (dataRecord.accessToken as string) || (dataRecord.jwt as string) || (dataRecord.authToken as string)
-      // Accept either a wrapped { user: ... } or a top-level user object returned directly by some backends
       const user = (dataRecord.user as unknown) || (dataRecord.profile as unknown) || (dataRecord.account as unknown) || dataUnknown
       
-      // Store token and user info
       if (token) localStorage.setItem('authToken', token)
       if (user) localStorage.setItem('user', JSON.stringify(user))
 
-      // Some backends use cookie-based sessions and return no token/user in the login response.
-      // In that case, attempt to fetch the user profile (requires withCredentials) and persist it.
       if (!token && !user) {
         try {
           const profile = await this.getUserProfile()
@@ -216,12 +210,9 @@ class ApiService {
             localStorage.setItem('user', JSON.stringify(profile))
             return { user: profile, token: '' }
           }
-        } catch (e) {
-          // ignore — we'll return whatever we have
-        }
+        } catch (e) {}
       }
 
-      // Construct a typed response for the caller
       const result: AuthResponse = {
         user: (user as unknown) as User,
         token: (token as unknown) as string,
@@ -240,7 +231,6 @@ class ApiService {
   }
 
   async signUp(userData: SignUpData): Promise<AuthResponse> {
-    // Helper to normalize response -> AuthResponse
     const normalize = (raw: unknown): AuthResponse => {
       function hasData(obj: unknown): obj is { data: unknown } {
         return typeof obj === 'object' && obj !== null && 'data' in obj
@@ -260,7 +250,6 @@ class ApiService {
     }
 
     try {
-      // Heroku backend expects: { name, email, password }
       const payload = {
         name: userData.name,
         email: userData.email,
@@ -276,13 +265,12 @@ class ApiService {
         } catch (e) {}
       }
       
-      // Heroku backend returns user object directly: { id, name, email, googleID }
       const user = response.data
       if (user && user.id) {
         localStorage.setItem('user', JSON.stringify(user))
         return {
           user: user as User,
-          token: '', // No token from Heroku backend - uses session-based auth
+          token: '',
         }
       }
       
@@ -294,6 +282,20 @@ class ApiService {
           console.debug('[api.signUp] error=', (error as any)?.response?.status, (error as any)?.response?.data)
         } catch (e) {}
       }
+      this.handleError(error)
+    }
+  }
+
+  async loginWithGoogle(credential: string): Promise<AuthResponse> {
+    try {
+      const response = await this.api.post<ApiResponse<AuthResponse>>('/auth/google', { credential })
+      const { data } = response.data
+      
+      if (data.token) localStorage.setItem('authToken', data.token)
+      localStorage.setItem('user', JSON.stringify(data.user))
+      
+      return data
+    } catch (error) {
       this.handleError(error)
     }
   }
@@ -351,28 +353,22 @@ class ApiService {
     }
   }
 
-  // User/Stats endpoints
   async getUserStats(): Promise<UserStats> {
     try {
       const response = await this.api.get<ApiResponse<UserStats>>('/user/stats')
       return response.data.data
     } catch (error) {
-      // If backend doesn't implement /user/stats, fall back to synthesizing from activity-logs
       if (axios.isAxiosError(error) && (error.response?.status === 404 || error.response?.status === 500)) {
         try {
-          // Get current user ID from localStorage
           const userStr = localStorage.getItem('user')
           const currentUserId = userStr ? JSON.parse(userStr).id : null
           
-          // Get all activity logs (already normalized)
           const allLogs = await this.getAllActivityLogs()
           
-          // Filter to current user's activities if we have a user ID
           const activities = currentUserId 
             ? allLogs.filter((a: any) => String(a.userId) === String(currentUserId) || String(a.user?.id) === String(currentUserId))
             : allLogs
 
-          // Simple synthesis: totalPoints as sum of points, weekly/monthly based on createdAt date
           const now = Date.now()
           const oneDay = 24 * 60 * 60 * 1000
           const last7 = now - 7 * oneDay
@@ -440,29 +436,20 @@ class ApiService {
       try {
         const resp = await this.api.get<ApiResponse<User>>('/user/profile')
         return resp.data.data
-      } catch {
-        // ignore and try fallbacks
-      }
+      } catch {}
 
-      // Try /auth/me (common) then /auth/{id}
       try {
         const resp = await this.api.get<ApiResponse<User>>('/auth/me')
         return resp.data.data
-      } catch {
-        // ignore
-      }
+      } catch {}
 
       if (id) {
         try {
           const resp = await this.api.get<ApiResponse<User>>(`/auth/${id}`)
-          // backend may return user directly or wrapped
           return (resp.data && (resp.data.data ?? resp.data)) as User
-        } catch {
-          // ignore
-        }
+        } catch {}
       }
 
-      // As a last resort, use stored user from localStorage
       if (userStr) return JSON.parse(userStr)
 
       throw new Error('Unable to fetch user profile')
@@ -471,14 +458,11 @@ class ApiService {
     }
   }
 
-  // Activity Logs endpoints (TypeLogsController - /activity-logs)
   async getAllActivityLogs(): Promise<ActivityLog[]> {
     try {
       const response = await this.api.get<ApiResponse<ActivityLog[]>>('/activity-logs')
-      // Heroku backend returns array directly with different field names
       const data = response.data as any
       if (Array.isArray(data)) {
-        // Normalize Heroku format to expected format
         return data.map((log: any) => ({
           id: log.activityId || log.id,
           userId: log.user?.id || log.userId,
@@ -734,24 +718,19 @@ class ApiService {
   // Challenges endpoint (tries multiple patterns)
   async getChallenges(userId?: string | number): Promise<Challenge[]> {
     try {
-      // Try user-specific challenges first if userId provided
       if (userId) {
         try {
           const response = await this.api.get<ApiResponse<Challenge[]>>(`/challenges/user/${userId}`)
           const data = response.data.data || response.data
           return Array.isArray(data) ? data : []
-        } catch (err) {
-          // Fall through to global endpoint
-        }
+        } catch (err) {}
       }
 
-      // Try global challenges endpoint
       try {
         const response = await this.api.get<ApiResponse<Challenge[]>>('/challenges')
         const data = response.data.data || response.data
         return Array.isArray(data) ? data : []
       } catch (err) {
-        // Backend may not have challenges endpoint yet
         if (axios.isAxiosError(err) && err.response?.status === 404) {
           console.warn('Challenges endpoint not implemented in backend')
           return []
@@ -763,7 +742,6 @@ class ApiService {
     }
   }
 
-  // Helper method to get current user ID
   private getCurrentUserId(): string | null {
     const userStr = localStorage.getItem('user')
     if (!userStr) return null
