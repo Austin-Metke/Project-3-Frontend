@@ -16,7 +16,6 @@ export default function GitHubCallback() {
       const token = searchParams.get('token')
       const errorParam = searchParams.get('error')
 
-      // Check for errors from GitHub
       if (errorParam) {
         if (!mounted) return
         setError('GitHub authentication was cancelled or failed')
@@ -24,10 +23,8 @@ export default function GitHubCallback() {
         return
       }
 
-      // Backend-managed OAuth may redirect with a token
       if (token) {
         localStorage.setItem('authToken', token)
-        // Optionally fetch user profile here when backend exposes /auth/me
         navigate('/dashboard')
         return
       }
@@ -40,10 +37,9 @@ export default function GitHubCallback() {
       }
 
       try {
-        // GitHub OAuth exchange - backend doesn't have this endpoint yet
-        // For now, redirect to login with an error message
-        setError('GitHub OAuth is not yet implemented on the backend')
-        setTimeout(() => navigate('/login'), 3000)
+        const githubAuthService = (await import('../services/githubAuth')).default
+        await githubAuthService.handleCallback(code, state)
+        navigate('/dashboard')
       } catch (err) {
         if (!mounted) return
         setError(err instanceof Error ? err.message : 'Authentication failed')

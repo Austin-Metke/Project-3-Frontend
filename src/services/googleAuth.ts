@@ -22,10 +22,8 @@ class GoogleAuthService {
         throw new Error('Failed to decode Google credential')
       }
 
-      // Store Google credential as auth token
       localStorage.setItem('authToken', credentialResponse.credential)
       
-      // Store user info from Google
       const user = {
         id: googleUser.sub,
         name: googleUser.name,

@@ -13,7 +13,6 @@ class GitHubAuthService {
   private baseAuthorizeUrl = 'https://github.com/login/oauth/authorize'
   private tokenUrl = 'https://github.com/login/oauth/access_token'
 
-  // PKCE helpers
   private base64UrlEncode(buffer: ArrayBuffer) {
     const bytes = new Uint8Array(buffer)
     let binary = ''
@@ -40,16 +39,12 @@ class GitHubAuthService {
     return this.base64UrlEncode(digest)
   }
 
-  /**
-   * Start OAuth by redirecting to GitHub with PKCE parameters
-   */
   async initiateLogin() {
     const { clientId, redirectUri, scope } = GITHUB_CONFIG
     const state = String(Math.random()).slice(2)
     const codeVerifier = this.generateCodeVerifier()
     const codeChallenge = await this.computeCodeChallenge(codeVerifier)
 
-    // Persist verifier and state for callback verification
     sessionStorage.setItem('github_oauth_state', state)
     sessionStorage.setItem('github_oauth_code_verifier', codeVerifier)
 
@@ -65,11 +60,6 @@ class GitHubAuthService {
     window.location.href = `${this.baseAuthorizeUrl}?${params.toString()}`
   }
 
-  /**
-   * Handle the OAuth callback by exchanging code for token using PKCE.
-   * IMPORTANT: GitHub's token endpoint may not allow CORS requests from the browser.
-   * If that is the case, this method will fail and you should perform the exchange on a backend.
-   */
   async handleCallback(code: string, state: string): Promise<GitHubUser> {
     const savedState = sessionStorage.getItem('github_oauth_state')
     if (state !== savedState) {
@@ -83,7 +73,6 @@ class GitHubAuthService {
       throw new Error('Missing code verifier for PKCE - cannot complete login')
     }
 
-    // Exchange code for access token directly with GitHub
     try {
       const resp = await fetch(this.tokenUrl, {
         method: 'POST',
@@ -107,11 +96,9 @@ class GitHubAuthService {
       const data = await resp.json()
       const accessToken = (data && (data.access_token || data.token)) as string | undefined
       if (!accessToken) {
-        // Likely CORS or server-side restriction — instruct to use backend
-        throw new Error('Token exchange did not return an access token. If using GitHub, their token endpoint may block browser requests; use a backend exchange.')
+        throw new Error('Token exchange did not return an access token.')
       }
 
-      // Retrieve basic profile
       const profileResp = await fetch('https://api.github.com/user', {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -124,7 +111,6 @@ class GitHubAuthService {
       }
       const profile = await profileResp.json()
 
-      // Try to get primary email
       let email: string | null = null
       try {
         const emailsResp = await fetch('https://api.github.com/user/emails', {
@@ -147,7 +133,6 @@ class GitHubAuthService {
           }
         }
       } catch {
-        // Non-fatal if emails endpoint fails
         email = null
       }
 
@@ -160,7 +145,6 @@ class GitHubAuthService {
         bio: profile.bio || null,
       }
 
-  // Store token and user locally
       localStorage.setItem('authToken', accessToken)
       localStorage.setItem('user', JSON.stringify({
         id: `github-${user.id}`,
@@ -172,9 +156,8 @@ class GitHubAuthService {
 
       return user
     } catch (err) {
-      // Re-throw with a clearer message when CORS or provider restrictions apply
       const msg = err instanceof Error ? err.message : String(err)
-      throw new Error(`${msg}. If this mentions CORS or blocked requests, run the exchange on your backend instead.`)
+      throw new Error(msg)
     }
   }
 

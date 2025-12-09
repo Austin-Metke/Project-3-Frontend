@@ -18,10 +18,8 @@ export default function Leaderboard() {
     setLoading(true)
     setError(null)
     try {
-      // Try backend leaderboard first
       const data = await apiService.getLeaderboard()
       const arr = Array.isArray(data) ? data : []
-      // Normalize to LeaderboardEntry
       const normalized: LeaderboardEntry[] = (arr as any[]).map((r, idx) => {
         const rec = r && typeof r === 'object' ? (r as Record<string, any>) : {}
         return {
@@ -37,10 +35,8 @@ export default function Leaderboard() {
         return
       }
 
-      // If backend returned empty, fall through to fallback
       throw new Error('Empty leaderboard from server')
     } catch (err) {
-      // Backend failed — fallback to client-side aggregation of activity-logs
       try {
         const logs = await apiService.getAllActivityLogs()
         const arr = Array.isArray(logs) ? logs : []

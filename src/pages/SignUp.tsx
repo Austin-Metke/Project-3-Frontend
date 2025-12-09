@@ -37,7 +37,6 @@ export default function SignUp() {
     setLoading(true)
 
     try {
-      // Heroku backend expects 'password' field for registration
       const result = await apiService.signUp({ name, email, password } as any)
 
       if (result?.user?.id) {
@@ -47,7 +46,6 @@ export default function SignUp() {
 
       navigate('/login')
     } catch (err) {
-      // Extract best possible backend error message
       let msg = 'Sign up failed. Please try again.'
       try {
         const anyErr = err as any

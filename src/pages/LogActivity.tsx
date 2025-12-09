@@ -36,7 +36,6 @@ export default function LogActivity() {
       if (import.meta.env.DEV) {
         console.log('[LogActivity] Fetched activities:', resp)
       }
-      // tolerate wrappers - ensure array
       const arr = Array.isArray(resp) ? resp : []
       setActivities(arr as ActivityType[])
       if (import.meta.env.DEV) {

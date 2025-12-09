@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import apiService from '../../services/api'
 import './Challenges.css'
 
-// Challenges now load from backend; mock data removed.
-
 interface Challenge {
   id: string
   title: string
@@ -31,33 +29,26 @@ export default function Challenges() {
   async function fetchChallenges() {
     setLoading(true)
     try {
-      // Prefer backend challenges if available
       const userStr = localStorage.getItem('user')
       const userId = userStr ? JSON.parse(userStr).id : undefined
       if (import.meta.env.DEV) {
         console.log('[Challenges] Fetching challenges for userId:', userId)
       }
-      // Try user-specific challenges first (if logged in). apiService.getChallenges is tolerant and will
-      // try multiple endpoints including /challenges/user/{id} and /challenges.
       let backendChallenges = await apiService.getChallenges(userId)
 
       if (import.meta.env.DEV) {
         console.log('[Challenges] User-specific challenges result:', backendChallenges)
       }
 
-      // If user-specific call returned nothing and we have a user, try the global /challenges endpoint
-      // (some backends may only expose global challenges)
       if ((!backendChallenges || (Array.isArray(backendChallenges) && backendChallenges.length === 0)) && userId) {
         backendChallenges = await apiService.getChallenges()
         if (import.meta.env.DEV) {
           console.log('[Challenges] Global challenges result:', backendChallenges)
         }
       }
-  // Capture raw payload for DEV debugging
-  setRawPayload(backendChallenges)
+      setRawPayload(backendChallenges)
 
-  // Normalize backend shape -> our Challenge interface if needed
-  const mapped = (Array.isArray(backendChallenges) ? backendChallenges : []).map((ch) => {
+      const mapped = (Array.isArray(backendChallenges) ? backendChallenges : []).map((ch) => {
         const record = (ch && typeof ch === 'object') ? (ch as Record<string, unknown>) : {}
         const id = String(record.challengeID ?? record.id ?? record.ChallengeID ?? Math.random())
         const title = String(record.name ?? record.title ?? 'Untitled Challenge')
@@ -72,7 +63,6 @@ export default function Challenges() {
       }) as Challenge[]
       setChallenges(mapped)
     } catch (err) {
-      // Do not fall back to mock — surface error so developer knows backend is missing
       console.error('Backend challenges unavailable:', err)
       setChallenges([])
     } finally {

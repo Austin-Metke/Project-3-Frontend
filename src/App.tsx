@@ -28,7 +28,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       const token = localStorage.getItem('authToken')
       const userStr = localStorage.getItem('user')
 
-      // If local auth info exists, treat as authenticated and avoid extra network call.
       if (token || userStr) {
         if (!mounted) return
         setAuthed(true)
@@ -36,7 +35,6 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
         return
       }
 
-      // No local auth info — try verifying server-side session (cookie)
       try {
         await apiService.getUserProfile()
         if (!mounted) return

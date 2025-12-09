@@ -21,8 +21,6 @@ export default function Login() {
     setLoading(true)
 
     try {
-      // Heroku backend expects { name, email, password }.
-      // Since email input is removed, map name to both fields for compatibility.
       const result = await apiService.login({ name, email: name, password } as any)
 
       if (import.meta.env.DEV) {
