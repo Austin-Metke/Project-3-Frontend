@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { GoogleLogin } from '@react-oauth/google'
 import apiService from '../services/api'
 import githubAuthService from '../services/githubAuth'
+import googleAuthService from '../services/googleAuth'
 import './Auth.css'
 import Notification from '../components/Notification'
 
@@ -19,35 +21,24 @@ export default function Login() {
     setLoading(true)
 
     try {
-      // Backend expects { name, passwordHash }
-      const result = await apiService.login({ name, passwordHash: password } as any)
+      const result = await apiService.login({ name, email: name, password } as any)
 
       if (import.meta.env.DEV) {
         try {
           // eslint-disable-next-line no-console
           console.debug('[Login] login result:', result, 'localStorage user=', localStorage.getItem('user'), 'token=', localStorage.getItem('authToken'))
-        } catch (e) {}
+        } catch {}
       }
 
-      // Backend may return either a wrapped AuthResponse or the user object directly.
-      const user = (result && (result.user ?? result))
-      if (user) {
-        setNotification({ message: 'Login successful', type: 'success' })
-        // apiService stores user when present; delay navigation so user sees toast
-        setTimeout(() => navigate('/dashboard'), 600)
-        return
-      }
-
-      // Otherwise check token fallback
+      const user = result?.user ?? result
       const token = result?.token ?? localStorage.getItem('authToken')
-      if (token) {
-        setNotification({ message: 'Login successful', type: 'success' })
-        setTimeout(() => navigate('/dashboard'), 600)
-        return
-      }
 
-      setError('Login failed: unexpected server response. Check backend behavior.')
-      setNotification({ message: 'Login failed', type: 'error' })
+      if (user || token) {
+        navigate('/dashboard')
+      } else {
+        setError('Login failed: unexpected server response.')
+        setNotification({ message: 'Login failed', type: 'error' })
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Login failed. Please try again.'
       setError(msg)
@@ -62,31 +53,50 @@ export default function Login() {
     githubAuthService.initiateLogin()
   }
 
+  // Google OAuth login
+  async function handleGoogleSuccess(credentialResponse: any) {
+    try {
+      setLoading(true)
+      await googleAuthService.handleGoogleLogin(credentialResponse)
+      navigate('/dashboard')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Google login failed'
+      setError(msg)
+      setNotification({ message: msg, type: 'error' })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleGoogleError() {
+    setError('Google login failed')
+    setNotification({ message: 'Google login failed', type: 'error' })
+  }
+
   return (
     <div className="auth-container">
       <div className="auth-card">
         <h1>Log in to EcoPoints</h1>
-        <p className="auth-subtitle">Sign in to track your eco-friendly journey</p>
 
         {error && (
           <div className="error-banner">
             {error}
           </div>
         )}
-
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="name">Username</label>
+            <label htmlFor="name">Name</label>
             <input
               id="name"
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="your username"
+              placeholder="Username"
               required
               disabled={loading}
             />
           </div>
+
 
           <div className="form-group">
             <label htmlFor="password">Password</label>
@@ -124,7 +134,13 @@ export default function Login() {
             Sign in with GitHub
           </button>
 
-          
+          <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center' }}>
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              useOneTap
+            />
+          </div>
 
           <div className="auth-footer">
             <p>

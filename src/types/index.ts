@@ -29,6 +29,7 @@ export interface User {
   email?: string
   username?: string
   googleID?: string | null
+  avatar?: string
   createdAt?: string
   updatedAt?: string
   totalPoints?: number
@@ -100,6 +101,7 @@ export interface ActivityType {
   points: number
   category: ActivityCategory
   icon?: string
+  co2gSaved?: number
 }
 
 export interface ActivityLog {
@@ -124,6 +126,7 @@ export interface CreateActivityTypeData {
   points: number
   category: ActivityCategory
   icon?: string
+  co2gSaved?: number
 }
 
 export interface UpdateActivityTypeData {
